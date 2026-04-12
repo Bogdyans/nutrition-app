@@ -1,0 +1,1 @@
+.\code2prompt . --output-file prompt.txt --exclude="**/test/*,*.json,*.md,*.txt"

@@ -14,7 +14,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { RequestWithUser, SessionUserDataFromJwt } from './types';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
-import { UsersService } from '../../main/users/users.service';
+import { UsersService } from '../../closed/users/users.service';
 
 @Controller('auth')
 export class AuthController {

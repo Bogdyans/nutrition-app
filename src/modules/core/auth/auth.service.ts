@@ -8,7 +8,7 @@ import { SessionUserDataFromJwt } from './types';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { User, UserRole } from '@prisma/client';
-import { UsersService } from '../../main/users/users.service';
+import { UsersService } from '../../closed/users/users.service';
 import { TokenService } from './token/token.service';
 
 @Injectable()
