@@ -6,7 +6,9 @@ export type SessionUserDataFromJwt = {
   roles: Role[];
 };
 
-export type JwtPayload = SessionUserDataFromJwt;
+export type JwtPayload = SessionUserDataFromJwt & {
+  jti: string;
+};
 
 export interface RequestWithUser extends Request {
   user: SessionUserDataFromJwt;

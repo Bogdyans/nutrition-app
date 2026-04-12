@@ -14,10 +14,13 @@ export class TokenService {
   ) {}
 
   async generateTokens(user: SessionUserDataFromJwt) {
+    const tokenId = crypto.randomUUID();
+
     const payload: JwtPayload = {
       id: user.id,
       email: user.email,
       roles: user.roles,
+      jti: tokenId,
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -35,6 +38,7 @@ export class TokenService {
 
     await this.prisma.refreshToken.create({
       data: {
+        id: tokenId,
         userId: user.id,
         tokenHash,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),

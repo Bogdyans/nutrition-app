@@ -63,49 +63,46 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     const payload = await this.tokenService.verifyRefreshToken(refreshToken);
-    const user = await this.usersService.findById(payload.id);
 
-    if (!user) throw new UnauthorizedException('User not found');
-
-    const activeTokens = await this.prisma.refreshToken.findMany({
-      where: { userId: user.id, revokedAt: null },
-      orderBy: { createdAt: 'desc' },
+    // Ищем конкретный токен по jti
+    const tokenRecord = await this.prisma.refreshToken.findUnique({
+      where: { id: payload.jti, revokedAt: null },
     });
 
-    for (const token of activeTokens) {
-      const matches = await bcrypt.compare(refreshToken, token.tokenHash);
-      if (!matches) continue;
+    if (!tokenRecord) throw new UnauthorizedException('Invalid token');
 
-      const tokens = await this.prisma.$transaction(async () => {
-        await this.tokenService.revokeToken(token.id);
-        return await this.tokenService.generateTokens(this.toSessionUser(user));
+    const isMatch = await bcrypt.compare(refreshToken, tokenRecord.tokenHash);
+    if (!isMatch) throw new UnauthorizedException('Invalid token');
+
+    const user = await this.usersService.findById(payload.id);
+    if (!user) throw new UnauthorizedException('User not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.refreshToken.update({
+        where: { id: tokenRecord.id },
+        data: { revokedAt: new Date() },
       });
-
-      return { user: this.toSessionUser(user), ...tokens };
-    }
-
-    throw new UnauthorizedException('Invalid refresh token');
+      return this.tokenService.generateTokens(this.toSessionUser(user));
+    });
   }
 
   async logout(refreshToken: string) {
     const payload = await this.tokenService.verifyRefreshToken(refreshToken);
 
-    // Ищем все активные токены пользователя
-    const tokens = await this.prisma.refreshToken.findMany({
-      where: { userId: payload.id, revokedAt: null },
+    const tokenRecord = await this.prisma.refreshToken.findUnique({
+      where: { id: payload.jti, revokedAt: null },
     });
 
-    for (const token of tokens) {
-      // Проверяем, какой именно токен прислал пользователь
-      const isMatch = await bcrypt.compare(refreshToken, token.tokenHash);
-
-      if (isMatch) {
-        // Отзываем конкретно этот токен
-        await this.tokenService.revokeToken(token.id);
-        return { message: 'Logged out successfully' };
-      }
+    if (!tokenRecord) {
+      throw new UnauthorizedException('Token already revoked or invalid');
     }
 
-    throw new UnauthorizedException('Token already revoked or invalid');
+    const isMatch = await bcrypt.compare(refreshToken, tokenRecord.tokenHash);
+    if (isMatch) {
+      await this.tokenService.revokeToken(tokenRecord.id);
+      return { message: 'Logged out successfully' };
+    }
+
+    throw new UnauthorizedException('Invalid token');
   }
 }
