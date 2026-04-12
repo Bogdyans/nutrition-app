@@ -2,14 +2,14 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from './modules/core/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { TokenCleanupService } from './tasks/token-cleanup.service';
+import { ProductsModule } from './modules/open/products/products.module';
 
 @Module({
   imports: [
     AuthModule,
     ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule,
-    TokenCleanupService,
+    ScheduleModule.forRoot(),
+    ProductsModule,
   ],
 })
 export class AppModule {}

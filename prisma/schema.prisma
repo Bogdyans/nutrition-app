@@ -109,6 +109,14 @@ enum Gender {
   @@map("genders")
 }
 
+enum ProductVisibility {
+  PRIVATE @map("private") // только владелец
+  SHARED  @map("shared") // расшарен другим пользователям
+  PUBLIC  @map("public") // системный (без владельца)
+
+  @@map("product_visibility")
+}
+
 ///////
 /////   MODELS
 ///////
@@ -152,7 +160,8 @@ model User {
   chatMembers      ChatMember[]
   achievements     Achievement[]
   weightHistory    WeightHistory[]
-  RefreshToken     RefreshToken[]
+  refreshToken     RefreshToken[]
+  products         Product[]
 
   @@map("users")
 }
@@ -168,14 +177,29 @@ model UserRole {
 }
 
 model Product {
-  id        String        @id @default(uuid())
-  name      String
-  nutrition Json
-  source    ProductSource @default(MANUAL)
+  id   String @id @default(uuid())
+  name String
 
+  calories  Float @default(0)
+  proteins  Float @default(0)
+  fats      Float @default(0)
+  carbs     Float @default(0)
+  nutrition Json
+
+  source     ProductSource     @default(MANUAL)
+  visibility ProductVisibility @default(PRIVATE)
+
+  ownerId String? @map("owner_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  owner     User?      @relation(fields: [ownerId], references: [id])
   mealItems MealItem[]
 
   @@index([name])
+  @@index([ownerId, visibility])
+  @@index([deletedAt])
   @@map("products")
 }
 
