@@ -1,0 +1,399 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+///////
+/////   ENUMS
+///////
+
+// Роли пользователей
+enum Role {
+  USER         @map("user")
+  NUTRITIONIST @map("nutritionist")
+  ADMIN        @map("admin")
+
+  @@map("roles")
+}
+
+enum ActivityLevel {
+  SEDENTARY @map("sedentary")
+  LIGHT     @map("light")
+  MODERATE  @map("moderate")
+  ACTIVE    @map("active")
+  EXTRA     @map("extra")
+
+  @@map("activity_levels")
+}
+
+enum GroupRole {
+  OWNER  @map("owner")
+  ADMIN  @map("admin")
+  MEMBER @map("member")
+
+  @@map("group_roles")
+}
+
+enum ChatType {
+  PRIVATE      @map("private")
+  GROUP        @map("group")
+  CONSULTATION @map("consultation")
+
+  @@map("chat_types")
+}
+
+enum ChatRole {
+  ADMIN  @map("admin")
+  MEMBER @map("member")
+
+  @@map("chat_roles")
+}
+
+// Источники данных о продуктах
+enum ProductSource {
+  MANUAL          @map("manual")
+  AI              @map("ai")
+  EXTERNAL_SOURCE @map("external")
+  VERIFIED        @map("verified")
+
+  @@map("product_sources")
+}
+
+enum SeverityLevel {
+  LOW    @map("low")
+  MEDIUM @map("medium")
+  HIGH   @map("high")
+
+  @@map("severity_levels")
+}
+
+// Статусы подписок
+enum SubscriptionStatus {
+  ACTIVE    @map("active")
+  EXPIRED   @map("expired")
+  PENDING   @map("pending")
+  CANCELLED @map("cancelled")
+
+  @@map("subscription_statuses")
+}
+
+enum PaymentStatus {
+  PENDING   @map("pending")
+  COMPLETED @map("completed")
+  FAILED    @map("failed")
+  CANCELLED @map("cancelled")
+  REFUNDED  @map("refunded")
+
+  @@map("payment_status")
+}
+
+enum BillingInterval {
+  MONTH @map("month")
+  YEAR  @map("year")
+
+  @@map("billing_intervals")
+}
+
+enum Gender {
+  MALE   @map("male")
+  FEMALE @map("female")
+
+  @@map("genders")
+}
+
+///////
+/////   MODELS
+///////
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh-tokens")
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  email         String        @unique
+  passwordHash  String        @map("password_hash")
+  username      String        @unique
+  gender        Gender?
+  birthDate     DateTime?     @map("birth_date")
+  heightCm      Float?        @map("height_in_cm")
+  currentWeight Float?        @map("current_weight")
+  activityLevel ActivityLevel @default(MODERATE) @map("activity_level")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  deletedAt     DateTime?
+
+  // Отношения
+  userRoles        UserRole[]
+  meals            Meal[]
+  reactions        Reaction[]
+  groupMemberships FamilyGroupMember[]
+  subscriptions    Subscription[]
+  payments         Payment[]
+  messages         Message[]
+  recommendation   Recommendation[]
+  chatMembers      ChatMember[]
+  achievements     Achievement[]
+  weightHistory    WeightHistory[]
+  RefreshToken     RefreshToken[]
+
+  @@map("users")
+}
+
+model UserRole {
+  userId Int  @map("user_id")
+  role   Role @default(USER)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([userId, role])
+  @@map("user_roles")
+}
+
+model Product {
+  id        Int           @id @default(autoincrement())
+  name      String
+  nutrition Json
+  source    ProductSource @default(MANUAL)
+
+  mealItems MealItem[]
+
+  @@index([name])
+  @@map("products")
+}
+
+model Meal {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  timestamp DateTime @default(now())
+  photoUrl  String?  @map("photo_url")
+
+  // Отношения
+  user          User           @relation(fields: [userId], references: [id])
+  items         MealItem[]
+  mealReactions MealReaction[]
+
+  @@index([userId, timestamp])
+  @@map("meals")
+}
+
+model MealItem {
+  id        Int   @id @default(autoincrement())
+  mealId    Int   @map("meal_id")
+  productId Int   @map("product_id")
+  weightG   Float @map("weight_in_grams")
+
+  meal    Meal    @relation(fields: [mealId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([mealId, productId])
+  @@map("meal_items")
+}
+
+model Reaction {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @map("user_id")
+  name        String
+  description String?
+
+  user          User           @relation(fields: [userId], references: [id])
+  mealReactions MealReaction[]
+
+  @@index([userId])
+  @@map("reactions")
+}
+
+model MealReaction {
+  id             Int            @id @default(autoincrement())
+  mealId         Int            @map("meal_id")
+  userReactionId Int            @map("user_reaction_id")
+  severity       SeverityLevel?
+  meal           Meal           @relation(fields: [mealId], references: [id])
+  reaction       Reaction       @relation(fields: [userReactionId], references: [id])
+
+  @@index([mealId])
+  @@index([userReactionId])
+  @@map("meal_reactions")
+}
+
+model Recommendation {
+  id Int @id @default(autoincrement())
+
+  userId    Int      @map("user_id")
+  // authorId  Int?     @map("author_id") // Эксперт или NULL для ИИ [cite: 973]
+  // author    User?    @relation("AuthoredRecommendations", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("recommendations")
+}
+
+model FamilyGroup {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  chatId    Int      @unique @map("chat_id")
+
+  members FamilyGroupMember[]
+  chat    Chat                @relation(fields: [chatId], references: [id])
+
+  @@map("family_groups")
+}
+
+model FamilyGroupMember {
+  userId  Int       @map("user_id")
+  groupId Int       @map("group_id")
+  role    GroupRole @default(MEMBER)
+
+  user  User        @relation(fields: [userId], references: [id])
+  group FamilyGroup @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+  @@index([groupId])
+  @@map("family_members")
+}
+
+model Chat {
+  id   Int      @id @default(autoincrement())
+  name String?
+  type ChatType
+
+  messages    Message[]
+  familyGroup FamilyGroup?
+  chatMembers ChatMember[]
+
+  @@map("chats")
+}
+
+model ChatMember {
+  chatId Int      @map("chat_id")
+  userId Int      @map("user_id")
+  role   ChatRole @default(MEMBER)
+
+  chat Chat @relation(fields: [chatId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([chatId, userId])
+  @@index([userId])
+  @@map("chat_members")
+}
+
+model Message {
+  id        Int       @id @default(autoincrement())
+  chatId    Int       @map("chat_id")
+  senderId  Int       @map("sender_id")
+  content   String
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+  readAt    DateTime? @map("read_at")
+
+  chat   Chat @relation(fields: [chatId], references: [id])
+  sender User @relation(fields: [senderId], references: [id])
+
+  @@index([chatId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Achievement {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  type        String
+  date        DateTime @default(now())
+  description String
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, date])
+  @@index([type])
+  @@map("achievements")
+}
+
+model Plan {
+  id       Int             @id @default(autoincrement())
+  name     String
+  price    Decimal         @db.Decimal(10, 2)
+  currency String
+  interval BillingInterval
+  info     Json
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id Int @id @default(autoincrement())
+
+  userId         Int                @map("user_id")
+  planId         Int                @map("plan_id")
+  status         SubscriptionStatus @default(PENDING)
+  startDate      DateTime           @map("start_date")
+  endDate        DateTime           @map("end_date")
+  cancelAtTheEnd Boolean            @default(false) @map("cancel_at_the_end")
+
+  plan     Plan      @relation(fields: [planId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  payments Payment[]
+
+  @@index([userId, status])
+  @@index([planId])
+  @@index([status, endDate])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                Int           @id @default(autoincrement())
+  userId            Int           @map("user_id")
+  subscriptionId    Int           @map("subscription_id")
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String
+  status            PaymentStatus
+  provider          String
+  providerPaymentId String        @unique @map("provider_payment_id")
+  paidAt            DateTime?     @map("paid_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [userId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([paidAt])
+  @@index([userId, createdAt])
+  @@map("payments")
+}
+
+model WeightHistory {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  weightInKg Float    @map("weight_in_kg")
+  measuredAt DateTime @default(now()) @map("measured_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, measuredAt])
+  @@map("weight_history")
+}
