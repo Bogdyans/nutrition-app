@@ -115,21 +115,21 @@ enum Gender {
 ///////
 
 model RefreshToken {
-  id        Int       @id @default(autoincrement())
+  id        String    @id @default(uuid())
   tokenHash String
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
 
-  userId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("refresh-tokens")
 }
 
 model User {
-  id            Int           @id @default(autoincrement())
+  id            String        @id @default(uuid())
   email         String        @unique
   passwordHash  String        @map("password_hash")
   username      String        @unique
@@ -159,8 +159,8 @@ model User {
 }
 
 model UserRole {
-  userId Int  @map("user_id")
-  role   Role @default(USER)
+  userId String @map("user_id")
+  role   Role   @default(USER)
 
   user User @relation(fields: [userId], references: [id])
 
@@ -169,7 +169,7 @@ model UserRole {
 }
 
 model Product {
-  id        Int           @id @default(autoincrement())
+  id        String        @id @default(uuid())
   name      String
   nutrition Json
   source    ProductSource @default(MANUAL)
@@ -181,8 +181,8 @@ model Product {
 }
 
 model Meal {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
   timestamp DateTime @default(now())
   photoUrl  String?  @map("photo_url")
 
@@ -196,10 +196,10 @@ model Meal {
 }
 
 model MealItem {
-  id        Int   @id @default(autoincrement())
-  mealId    Int   @map("meal_id")
-  productId Int   @map("product_id")
-  weightG   Float @map("weight_in_grams")
+  id        String @id @default(uuid())
+  mealId    String @map("meal_id")
+  productId String @map("product_id")
+  weightG   Float  @map("weight_in_grams")
 
   meal    Meal    @relation(fields: [mealId], references: [id])
   product Product @relation(fields: [productId], references: [id])
@@ -209,8 +209,8 @@ model MealItem {
 }
 
 model Reaction {
-  id          Int     @id @default(autoincrement())
-  userId      Int     @map("user_id")
+  id          String  @id @default(uuid())
+  userId      String  @map("user_id")
   name        String
   description String?
 
@@ -222,9 +222,9 @@ model Reaction {
 }
 
 model MealReaction {
-  id             Int            @id @default(autoincrement())
-  mealId         Int            @map("meal_id")
-  userReactionId Int            @map("user_reaction_id")
+  id             String         @id @default(uuid())
+  mealId         String         @map("meal_id")
+  userReactionId String         @map("user_reaction_id")
   severity       SeverityLevel?
   meal           Meal           @relation(fields: [mealId], references: [id])
   reaction       Reaction       @relation(fields: [userReactionId], references: [id])
@@ -235,9 +235,8 @@ model MealReaction {
 }
 
 model Recommendation {
-  id Int @id @default(autoincrement())
-
-  userId    Int      @map("user_id")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
   // authorId  Int?     @map("author_id") // Эксперт или NULL для ИИ [cite: 973]
   // author    User?    @relation("AuthoredRecommendations", fields: [authorId], references: [id])
   content   String
@@ -250,10 +249,10 @@ model Recommendation {
 }
 
 model FamilyGroup {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now()) @map("created_at")
-  chatId    Int      @unique @map("chat_id")
+  chatId    String   @unique @map("chat_id")
 
   members FamilyGroupMember[]
   chat    Chat                @relation(fields: [chatId], references: [id])
@@ -262,8 +261,8 @@ model FamilyGroup {
 }
 
 model FamilyGroupMember {
-  userId  Int       @map("user_id")
-  groupId Int       @map("group_id")
+  userId  String    @map("user_id")
+  groupId String    @map("group_id")
   role    GroupRole @default(MEMBER)
 
   user  User        @relation(fields: [userId], references: [id])
@@ -275,7 +274,7 @@ model FamilyGroupMember {
 }
 
 model Chat {
-  id   Int      @id @default(autoincrement())
+  id   String   @id @default(uuid())
   name String?
   type ChatType
 
@@ -287,8 +286,8 @@ model Chat {
 }
 
 model ChatMember {
-  chatId Int      @map("chat_id")
-  userId Int      @map("user_id")
+  chatId String   @map("chat_id")
+  userId String   @map("user_id")
   role   ChatRole @default(MEMBER)
 
   chat Chat @relation(fields: [chatId], references: [id])
@@ -300,9 +299,9 @@ model ChatMember {
 }
 
 model Message {
-  id        Int       @id @default(autoincrement())
-  chatId    Int       @map("chat_id")
-  senderId  Int       @map("sender_id")
+  id        String    @id @default(uuid())
+  chatId    String    @map("chat_id")
+  senderId  String    @map("sender_id")
   content   String
   createdAt DateTime  @default(now()) @map("created_at")
   deletedAt DateTime? @map("deleted_at")
@@ -317,8 +316,8 @@ model Message {
 }
 
 model Achievement {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
   type        String
   date        DateTime @default(now())
   description String
@@ -331,7 +330,7 @@ model Achievement {
 }
 
 model Plan {
-  id       Int             @id @default(autoincrement())
+  id       String          @id @default(uuid())
   name     String
   price    Decimal         @db.Decimal(10, 2)
   currency String
@@ -344,10 +343,10 @@ model Plan {
 }
 
 model Subscription {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid())
 
-  userId         Int                @map("user_id")
-  planId         Int                @map("plan_id")
+  userId         String             @map("user_id")
+  planId         String             @map("plan_id")
   status         SubscriptionStatus @default(PENDING)
   startDate      DateTime           @map("start_date")
   endDate        DateTime           @map("end_date")
@@ -364,9 +363,9 @@ model Subscription {
 }
 
 model Payment {
-  id                Int           @id @default(autoincrement())
-  userId            Int           @map("user_id")
-  subscriptionId    Int           @map("subscription_id")
+  id                String        @id @default(uuid())
+  userId            String        @map("user_id")
+  subscriptionId    String        @map("subscription_id")
   amount            Decimal       @db.Decimal(10, 2)
   currency          String
   status            PaymentStatus
@@ -387,8 +386,8 @@ model Payment {
 }
 
 model WeightHistory {
-  id         Int      @id @default(autoincrement())
-  userId     Int      @map("user_id")
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
   weightInKg Float    @map("weight_in_kg")
   measuredAt DateTime @default(now()) @map("measured_at")
 
