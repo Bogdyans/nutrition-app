@@ -180,11 +180,10 @@ model Product {
   id   String @id @default(uuid())
   name String
 
-  calories  Float @default(0)
-  proteins  Float @default(0)
-  fats      Float @default(0)
-  carbs     Float @default(0)
-  nutrition Json
+  calories Float @default(0)
+  proteins Float @default(0)
+  fats     Float @default(0)
+  carbs    Float @default(0)
 
   source     ProductSource     @default(MANUAL)
   visibility ProductVisibility @default(PRIVATE)
@@ -224,7 +223,7 @@ model MealItem {
   productId String @map("product_id")
   weightG   Float  @map("weight_in_grams")
 
-  meal    Meal    @relation(fields: [mealId], references: [id])
+  meal    Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 
   @@index([mealId, productId])

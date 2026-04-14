@@ -25,7 +25,6 @@ export class ProductsService {
         fats: dto.fats ?? 0,
         carbs: dto.carbs ?? 0,
         source: ProductSource.MANUAL,
-        nutrition: {},
         visibility,
         ownerId: userId,
       },
