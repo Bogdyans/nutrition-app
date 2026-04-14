@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ProductsModule } from './modules/open/products/products.module';
 import { MealsModule } from './modules/open/meals/meals.module';
+import { WeightHistoryModule } from './modules/open/weight-history/weight-history.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { MealsModule } from './modules/open/meals/meals.module';
     ScheduleModule.forRoot(),
     ProductsModule,
     MealsModule,
+    WeightHistoryModule,
   ],
 })
 export class AppModule {}

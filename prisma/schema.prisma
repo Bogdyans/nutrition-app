@@ -415,6 +415,6 @@ model WeightHistory {
 
   user User @relation(fields: [userId], references: [id])
 
-  @@index([userId, measuredAt])
+  @@unique([userId, measuredAt])
   @@map("weight_history")
 }
