@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { WeightHistoryService } from './weight-history.service';
 import { CreateWeightRecordDto } from './dto/create-weight-record.dto';
 import { UpdateWeightRecordDto } from './dto/update-weight-record.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
+import { WeightHistoryPaginationDto } from './dto/get-weight-records.dto';
 import type { SessionUserDataFromJwt } from '../../core/auth/types';
 
 @UseGuards(JwtAuthGuard)
@@ -29,8 +31,11 @@ export class WeightHistoryController {
   }
 
   @Get()
-  findAll(@CurrentUser() user: SessionUserDataFromJwt) {
-    return this.weightHistoryService.findAll(user.id);
+  findAll(
+    @CurrentUser() user: SessionUserDataFromJwt,
+    @Query() query: WeightHistoryPaginationDto,
+  ) {
+    return this.weightHistoryService.findAll(user.id, query.take, query.cursor);
   }
 
   @Patch(':id')

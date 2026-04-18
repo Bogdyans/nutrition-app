@@ -13,29 +13,35 @@ import { normalizeDate } from '../../../shared/utils/date';
 export class WeightHistoryService {
   constructor(private prisma: PrismaService) {}
 
-  private async updateCurrentWeightIfLatest(
+  /**
+   * Всегда пересчитываем currentWeight из БД
+   * → устраняет любые рассинхронизации
+   */
+  private async recomputeCurrentWeight(
     tx: Prisma.TransactionClient,
     userId: string,
-    weightInKg: number,
-    measuredAt: Date,
   ) {
     const latest = await tx.weightHistory.findFirst({
       where: { userId },
-      orderBy: { measuredAt: 'desc' },
-      select: { measuredAt: true },
+      orderBy: [
+        { measuredAt: 'desc' },
+        { id: 'desc' }, // стабильность
+      ],
     });
 
-    if (!latest || measuredAt >= latest.measuredAt) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { currentWeight: weightInKg },
-      });
-    }
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        currentWeight: latest ? latest.weightInKg : null,
+      },
+    });
   }
 
   async create(userId: string, dto: CreateWeightRecordDto) {
     return this.prisma.$transaction(async (tx) => {
-      const measuredAt = normalizeDate(dto.measuredAt);
+      const measuredAt = normalizeDate(
+        dto.measuredAt ?? new Date().toISOString(),
+      );
 
       try {
         const newRecord = await tx.weightHistory.create({
@@ -46,12 +52,7 @@ export class WeightHistoryService {
           },
         });
 
-        await this.updateCurrentWeightIfLatest(
-          tx,
-          userId,
-          dto.weightInKg,
-          measuredAt,
-        );
+        await this.recomputeCurrentWeight(tx, userId);
 
         return newRecord;
       } catch (e) {
@@ -66,13 +67,27 @@ export class WeightHistoryService {
     });
   }
 
-  async findAll(userId: string, take = 50, skip = 0) {
-    return this.prisma.weightHistory.findMany({
+  /**
+   * Cursor-based pagination
+   */
+  async findAll(userId: string, take = 30, cursor?: string) {
+    const records = await this.prisma.weightHistory.findMany({
       where: { userId },
-      orderBy: { measuredAt: 'desc' },
-      take,
-      skip,
+      orderBy: [{ measuredAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1,
+      }),
     });
+
+    const hasNextPage = records.length > take;
+    const data = hasNextPage ? records.slice(0, take) : records;
+
+    return {
+      data,
+      nextCursor: hasNextPage ? data[data.length - 1].id : null,
+    };
   }
 
   async update(userId: string, id: string, dto: UpdateWeightRecordDto) {
@@ -100,12 +115,7 @@ export class WeightHistoryService {
           },
         });
 
-        await this.updateCurrentWeightIfLatest(
-          tx,
-          userId,
-          updated.weightInKg,
-          measuredAt,
-        );
+        await this.recomputeCurrentWeight(tx, userId);
 
         return updated;
       } catch (e) {
@@ -132,17 +142,7 @@ export class WeightHistoryService {
         where: { id },
       });
 
-      const latest = await tx.weightHistory.findFirst({
-        where: { userId },
-        orderBy: { measuredAt: 'desc' },
-      });
-
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          currentWeight: latest ? latest.weightInKg : null,
-        },
-      });
+      await this.recomputeCurrentWeight(tx, userId);
 
       return { success: true };
     });

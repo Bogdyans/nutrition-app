@@ -1,5 +1,14 @@
-export function normalizeDate(date?: string): Date {
-  if (!date) return new Date();
+import { BadRequestException } from '@nestjs/common';
 
-  return new Date(date.endsWith('Z') ? date : `${date}T00:00:00.000Z`);
+export function normalizeDate(input: string): Date {
+  const date = new Date(input);
+
+  if (isNaN(date.getTime())) {
+    throw new BadRequestException('Invalid date format');
+  }
+
+  // Обнуляем время ВСЕГДА
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
 }

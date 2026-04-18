@@ -411,10 +411,11 @@ model WeightHistory {
   id         String   @id @default(uuid())
   userId     String   @map("user_id")
   weightInKg Float    @map("weight_in_kg")
-  measuredAt DateTime @default(now()) @map("measured_at")
+  measuredAt DateTime @default(now()) @map("measured_at") @db.Date
 
   user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, measuredAt])
+  @@index([userId, measuredAt(sort: Desc)])
   @@map("weight_history")
 }
