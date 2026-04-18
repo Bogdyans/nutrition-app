@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ProductsModule } from './modules/open/products/products.module';
 import { MealsModule } from './modules/open/meals/meals.module';
 import { WeightHistoryModule } from './modules/open/weight-history/weight-history.module';
+import { ProfileModule } from './modules/open/profile/profile.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WeightHistoryModule } from './modules/open/weight-history/weight-histor
     ProductsModule,
     MealsModule,
     WeightHistoryModule,
+    ProfileModule,
   ],
 })
 export class AppModule {}
