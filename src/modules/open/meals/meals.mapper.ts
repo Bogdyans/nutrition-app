@@ -41,7 +41,3 @@ export function normalizeNutritionTotals(totals: NutritionTotals) {
     carbs: Number(totals.carbs.toFixed(2)),
   };
 }
-
-export function calculateMealTotals(meal: MealStatsInput) {
-  return normalizeNutritionTotals(calculateMealTotalsRaw(meal));
-}

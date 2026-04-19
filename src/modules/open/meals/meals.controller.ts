@@ -40,14 +40,6 @@ export class MealsController {
     return this.mealsService.findMany(user.id, query);
   }
 
-  @Get('stats')
-  getStats(
-    @CurrentUser() user: SessionUserDataFromJwt,
-    @Query() query: GetMealsDto,
-  ) {
-    return this.mealsService.getStats(user.id, query);
-  }
-
   @Get(':id')
   findOne(
     @CurrentUser() user: SessionUserDataFromJwt,

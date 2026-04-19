@@ -6,6 +6,7 @@ import { ProductsModule } from './modules/open/products/products.module';
 import { MealsModule } from './modules/open/meals/meals.module';
 import { WeightHistoryModule } from './modules/open/weight-history/weight-history.module';
 import { ProfileModule } from './modules/open/profile/profile.module';
+import { StatsModule } from './modules/open/stats/stats.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ProfileModule } from './modules/open/profile/profile.module';
     MealsModule,
     WeightHistoryModule,
     ProfileModule,
+    StatsModule,
   ],
 })
 export class AppModule {}

@@ -25,24 +25,6 @@ type MealWithItems = Prisma.MealGetPayload<{
   };
 }>;
 
-type MealStatsProjection = Prisma.MealGetPayload<{
-  select: {
-    items: {
-      select: {
-        weightG: true;
-        product: {
-          select: {
-            calories: true;
-            proteins: true;
-            fats: true;
-            carbs: true;
-          };
-        };
-      };
-    };
-  };
-}>;
-
 @Injectable()
 export class MealsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -321,58 +303,6 @@ export class MealsService {
     });
 
     return this.findOne(userId, mealId);
-  }
-
-  async getStats(userId: string, query: GetMealsDto) {
-    const { start, end } = this.resolveRange(query);
-
-    const meals = await this.prisma.meal.findMany({
-      where: {
-        userId,
-        timestamp: {
-          gte: start,
-          lt: end,
-        },
-      },
-      select: {
-        items: {
-          select: {
-            weightG: true,
-            product: {
-              select: {
-                calories: true,
-                proteins: true,
-                fats: true,
-                carbs: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const totalsRaw = meals.reduce(
-      (acc, meal) => {
-        const mealTotals = calculateMealTotalsRaw(meal as MealStatsProjection);
-
-        acc.calories += mealTotals.calories;
-        acc.proteins += mealTotals.proteins;
-        acc.fats += mealTotals.fats;
-        acc.carbs += mealTotals.carbs;
-
-        return acc;
-      },
-      { calories: 0, proteins: 0, fats: 0, carbs: 0 },
-    );
-
-    return {
-      period: {
-        from: start,
-        to: end,
-      },
-      mealsCount: meals.length,
-      totals: normalizeNutritionTotals(totalsRaw),
-    };
   }
 
   async updateMeal(userId: string, mealId: string, dto: UpdateMealDto) {
