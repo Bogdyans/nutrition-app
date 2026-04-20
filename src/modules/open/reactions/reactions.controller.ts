@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateReactionDto } from './dto/add-reaction.dto';
 import { UpdateReactionDto } from './dto/update-reaction.dto';
@@ -16,7 +17,9 @@ import { ReactionsService } from './services/reactions.service';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import type { JwtPayload } from '../../core/auth/types';
 import { ReactionsCRUDService } from './services/reactions-crud.service';
+import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('reactions')
 export class ReactionsController {
   constructor(

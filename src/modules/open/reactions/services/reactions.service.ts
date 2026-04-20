@@ -3,17 +3,40 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { MealReaction, Prisma } from '@prisma/client';
 import { AddMealReactionsDto } from '../dto/add-reaction-to-meal.dto';
-import { MealReaction, SeverityLevel } from '@prisma/client';
-import { severityScore } from '../../../../shared/consts/reactions';
 import { PrismaService } from '../../../core/prisma/prisma.service';
+import { ReactionStatsDomainService } from './reaction-stats.domain.service';
 
 @Injectable()
 export class ReactionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stats: ReactionStatsDomainService,
+  ) {}
+
+  private async lockMealOrThrow(
+    client: Prisma.TransactionClient,
+    userId: string,
+    mealId: string,
+  ) {
+    const rows = await client.$queryRaw<{ id: string }[]>`
+      SELECT id
+      FROM "meals"
+      WHERE id = ${mealId}
+        AND "user_id" = ${userId}
+      FOR UPDATE
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException('Meal not found');
+    }
+  }
 
   async addToMeal(userId: string, mealId: string, dto: AddMealReactionsDto) {
     return this.prisma.$transaction(async (tx) => {
+      await this.lockMealOrThrow(tx, userId, mealId);
+
       const meal = await tx.meal.findFirst({
         where: { id: mealId, userId },
         include: {
@@ -22,24 +45,46 @@ export class ReactionsService {
         },
       });
 
-      if (!meal) throw new NotFoundException('Meal not found');
+      if (!meal) {
+        throw new NotFoundException('Meal not found');
+      }
+
       if (!meal.items.length) {
         throw new BadRequestException('Meal has no products');
       }
 
-      const productIds = [...new Set(meal.items.map((i) => i.productId))];
-      const hadReactionsBefore = meal.mealReactions.length > 0;
+      const dtoReactionIds = dto.reactions.map((r) => r.reactionId);
+      const uniqueDtoReactionIds = new Set(dtoReactionIds);
+
+      if (uniqueDtoReactionIds.size !== dtoReactionIds.length) {
+        throw new BadRequestException('Duplicate reactions');
+      }
+
+      const alreadyAddedReactionIds = new Set(
+        meal.mealReactions.map((reaction) => reaction.userReactionId),
+      );
+
+      if (
+        dto.reactions.some((reaction) =>
+          alreadyAddedReactionIds.has(reaction.reactionId),
+        )
+      ) {
+        throw new BadRequestException('Reaction already added to meal');
+      }
 
       const reactions = await tx.reaction.findMany({
         where: {
-          id: { in: dto.reactions.map((r) => r.reactionId) },
+          id: { in: dtoReactionIds },
           userId,
         },
       });
 
-      if (reactions.length !== dto.reactions.length) {
+      if (reactions.length !== dtoReactionIds.length) {
         throw new BadRequestException('Invalid reactions');
       }
+
+      const productIds = [...new Set(meal.items.map((i) => i.productId))];
+      let shouldIncrementReactionMealsCount = meal.mealReactions.length === 0;
 
       const created: MealReaction[] = [];
 
@@ -48,60 +93,29 @@ export class ReactionsService {
           data: {
             mealId,
             userReactionId: item.reactionId,
-            severity: (item.severity?.toUpperCase() as SeverityLevel) ?? null,
+            severity: item.severity ?? null,
           },
         });
 
         created.push(createdReaction);
 
-        const severityValue = item.severity ? severityScore[item.severity] : 0;
+        await this.stats.applyReactionAddedToMeal(
+          tx,
+          userId,
+          productIds,
+          {
+            reactionId: item.reactionId,
+            severity: item.severity ?? null,
+          },
+          shouldIncrementReactionMealsCount,
+        );
 
-        for (const productId of productIds) {
-          await tx.productReactionDetail.upsert({
-            where: {
-              userId_productId_reactionId: {
-                userId,
-                productId,
-                reactionId: item.reactionId,
-              },
-            },
-            create: {
-              userId,
-              productId,
-              reactionId: item.reactionId,
-              count: 1,
-              severitySum: severityValue,
-            },
-            update: {
-              count: { increment: 1 },
-              severitySum: { increment: severityValue },
-            },
-          });
-
-          if (!hadReactionsBefore) {
-            await tx.productReactionStat.upsert({
-              where: {
-                userId_productId: { userId, productId },
-              },
-              create: {
-                userId,
-                productId,
-                mealsCount: 0,
-                reactionMealsCount: 1,
-              },
-              update: {
-                reactionMealsCount: { increment: 1 },
-              },
-            });
-          }
-        }
+        shouldIncrementReactionMealsCount = false;
       }
 
       return created;
     });
   }
-
-  // ---------------- REMOVE ----------------
 
   async removeFromMeal(userId: string, mealReactionId: string) {
     return this.prisma.$transaction(async (tx) => {
@@ -121,71 +135,36 @@ export class ReactionsService {
       });
 
       if (!mealReaction) {
-        throw new NotFoundException();
+        throw new NotFoundException('Meal reaction not found');
       }
+
+      await this.lockMealOrThrow(tx, userId, mealReaction.mealId);
 
       const productIds = [
         ...new Set(mealReaction.meal.items.map((i) => i.productId)),
       ];
 
-      const remaining = mealReaction.meal.mealReactions.length - 1;
+      const shouldDecrementReactionMealsCount =
+        mealReaction.meal.mealReactions.length === 1;
 
-      const severityValue = mealReaction.severity
-        ? severityScore[mealReaction.severity]
-        : 0;
+      await this.stats.applyReactionRemovedFromMeal(
+        tx,
+        userId,
+        productIds,
+        {
+          reactionId: mealReaction.userReactionId,
+          severity: mealReaction.severity,
+        },
+        shouldDecrementReactionMealsCount,
+      );
 
       await tx.mealReaction.delete({
         where: { id: mealReactionId },
       });
 
-      for (const productId of productIds) {
-        await tx.productReactionDetail.update({
-          where: {
-            userId_productId_reactionId: {
-              userId,
-              productId,
-              reactionId: mealReaction.userReactionId,
-            },
-          },
-          data: {
-            count: { decrement: 1 },
-            severitySum: { decrement: severityValue },
-          },
-        });
-
-        const detail = await tx.productReactionDetail.findUnique({
-          where: {
-            userId_productId_reactionId: {
-              userId,
-              productId,
-              reactionId: mealReaction.userReactionId,
-            },
-          },
-        });
-
-        if (detail && detail.count <= 0) {
-          await tx.productReactionDetail.delete({
-            where: { id: detail.id },
-          });
-        }
-
-        if (remaining === 0) {
-          await tx.productReactionStat.update({
-            where: {
-              userId_productId: { userId, productId },
-            },
-            data: {
-              reactionMealsCount: { decrement: 1 },
-            },
-          });
-        }
-      }
-
       return { success: true };
     });
   }
-
-  // ---------------- STATS ----------------
 
   async getProductStats(userId: string, productId: string) {
     const stat = await this.prisma.productReactionStat.findUnique({

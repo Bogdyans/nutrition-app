@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../core/prisma/prisma.service';
 import { CreateReactionDto } from '../dto/add-reaction.dto';
 import { UpdateReactionDto } from '../dto/update-reaction.dto';
@@ -29,7 +33,9 @@ export class ReactionsCRUDService {
       where: { id, userId },
     });
 
-    if (!reaction) throw new NotFoundException();
+    if (!reaction) {
+      throw new NotFoundException();
+    }
 
     return this.prisma.reaction.update({
       where: { id },
@@ -43,9 +49,24 @@ export class ReactionsCRUDService {
   async remove(userId: string, id: string) {
     const reaction = await this.prisma.reaction.findFirst({
       where: { id, userId },
+      include: {
+        mealReactions: {
+          select: {
+            id: true,
+          },
+        },
+      },
     });
 
-    if (!reaction) throw new NotFoundException();
+    if (!reaction) {
+      throw new NotFoundException();
+    }
+
+    if (reaction.mealReactions.length > 0) {
+      throw new BadRequestException(
+        'Reaction is already used in meals and cannot be deleted',
+      );
+    }
 
     return this.prisma.reaction.delete({
       where: { id },

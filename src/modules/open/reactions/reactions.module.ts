@@ -3,11 +3,15 @@ import { PrismaModule } from '../../core/prisma/prisma.module';
 import { ReactionsController } from './reactions.controller';
 import { ReactionsService } from './services/reactions.service';
 import { ReactionsCRUDService } from './services/reactions-crud.service';
-
+import { ReactionStatsDomainService } from './services/reaction-stats.domain.service';
 
 @Module({
   imports: [PrismaModule],
   controllers: [ReactionsController],
-  providers: [ReactionsService, ReactionsCRUDService],
+  providers: [
+    ReactionsService,
+    ReactionsCRUDService,
+    ReactionStatsDomainService,
+  ],
 })
 export class ReactionsModule {}

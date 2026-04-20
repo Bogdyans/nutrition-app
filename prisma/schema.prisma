@@ -256,9 +256,9 @@ model MealReaction {
   meal           Meal           @relation(fields: [mealId], references: [id])
   reaction       Reaction       @relation(fields: [userReactionId], references: [id])
 
+  @@unique([mealId, userReactionId])
   @@index([mealId])
   @@index([userReactionId])
-  @@unique([mealId, userReactionId])
   @@map("meal_reactions")
 }
 
@@ -457,9 +457,8 @@ model ProductReactionDetail {
   count Int @default(0)
 
   // сумма сил реакций
-  severitySum Float @default(0)
-
-  updatedAt DateTime @updatedAt
+  severitySum Float    @default(0)
+  updatedAt   DateTime @updatedAt
 
   // связи
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)

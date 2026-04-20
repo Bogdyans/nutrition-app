@@ -1,4 +1,5 @@
 import {
+  ArrayMinSize,
   IsArray,
   IsEnum,
   IsOptional,
@@ -7,7 +8,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SeverityLevel } from '@prisma/client';
-
 
 class ReactionItemDto {
   @IsUUID()
@@ -20,6 +20,7 @@ class ReactionItemDto {
 
 export class AddMealReactionsDto {
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => ReactionItemDto)
   reactions: ReactionItemDto[];
