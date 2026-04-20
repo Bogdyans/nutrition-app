@@ -162,6 +162,8 @@ model User {
   weightHistory    WeightHistory[]
   refreshToken     RefreshToken[]
   products         Product[]
+  productStats     ProductReactionStat[]
+  productDetails   ProductReactionDetail[]
 
   @@map("users")
 }
@@ -193,8 +195,10 @@ model Product {
   createdAt DateTime  @default(now()) @map("created_at")
   deletedAt DateTime? @map("deleted_at")
 
-  owner     User?      @relation(fields: [ownerId], references: [id])
-  mealItems MealItem[]
+  owner                  User?                   @relation(fields: [ownerId], references: [id])
+  mealItems              MealItem[]
+  productReactionStats   ProductReactionStat[]
+  productReactionDetails ProductReactionDetail[]
 
   @@index([name])
   @@index([ownerId, visibility])
@@ -236,8 +240,9 @@ model Reaction {
   name        String
   description String?
 
-  user          User           @relation(fields: [userId], references: [id])
-  mealReactions MealReaction[]
+  user                   User                    @relation(fields: [userId], references: [id])
+  mealReactions          MealReaction[]
+  productReactionDetails ProductReactionDetail[]
 
   @@index([userId])
   @@map("reactions")
@@ -253,6 +258,7 @@ model MealReaction {
 
   @@index([mealId])
   @@index([userReactionId])
+  @@unique([mealId, userReactionId])
   @@map("meal_reactions")
 }
 
@@ -418,4 +424,50 @@ model WeightHistory {
   @@unique([userId, measuredAt])
   @@index([userId, measuredAt(sort: Desc)])
   @@map("weight_history")
+}
+
+// ProductReactions types
+model ProductReactionStat {
+  id        String @id @default(uuid())
+  userId    String
+  productId String
+
+  // базовая статистика
+  mealsCount         Int      @default(0)
+  reactionMealsCount Int      @default(0)
+  updatedAt          DateTime @updatedAt
+
+  // связи
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model ProductReactionDetail {
+  id String @id @default(uuid())
+
+  userId     String
+  productId  String
+  reactionId String
+
+  // сколько раз эта реакция была с этим продуктом
+  count Int @default(0)
+
+  // сумма сил реакций
+  severitySum Float @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  // связи
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reaction Reaction @relation(fields: [reactionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId, reactionId])
+  @@index([userId, productId])
+  @@index([userId, reactionId])
+  @@index([productId])
 }

@@ -7,6 +7,7 @@ import { MealsModule } from './modules/open/meals/meals.module';
 import { WeightHistoryModule } from './modules/open/weight-history/weight-history.module';
 import { ProfileModule } from './modules/open/profile/profile.module';
 import { StatsModule } from './modules/open/stats/stats.module';
+import { ReactionsModule } from './modules/open/reactions/reactions.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { StatsModule } from './modules/open/stats/stats.module';
     WeightHistoryModule,
     ProfileModule,
     StatsModule,
+    ReactionsModule,
   ],
 })
 export class AppModule {}
