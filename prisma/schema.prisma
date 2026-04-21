@@ -117,6 +117,15 @@ enum ProductVisibility {
   @@map("product_visibility")
 }
 
+enum InvitationStatus {
+  PENDING  @map("pending")
+  ACCEPTED @map("accepted")
+  DECLINED @map("declined")
+  EXPIRED  @map("expired")
+
+  @@map("invitation_status")
+}
+
 ///////
 /////   MODELS
 ///////
@@ -149,21 +158,23 @@ model User {
   deletedAt     DateTime?
 
   // Отношения
-  userRoles        UserRole[]
-  meals            Meal[]
-  reactions        Reaction[]
-  groupMemberships FamilyGroupMember[]
-  subscriptions    Subscription[]
-  payments         Payment[]
-  messages         Message[]
-  recommendation   Recommendation[]
-  chatMembers      ChatMember[]
-  achievements     Achievement[]
-  weightHistory    WeightHistory[]
-  refreshToken     RefreshToken[]
-  products         Product[]
-  productStats     ProductReactionStat[]
-  productDetails   ProductReactionDetail[]
+  userRoles                     UserRole[]
+  meals                         Meal[]
+  reactions                     Reaction[]
+  groupMemberships              FamilyGroupMember[]
+  subscriptions                 Subscription[]
+  payments                      Payment[]
+  messages                      Message[]
+  recommendation                Recommendation[]
+  chatMembers                   ChatMember[]
+  achievements                  Achievement[]
+  weightHistory                 WeightHistory[]
+  refreshToken                  RefreshToken[]
+  products                      Product[]
+  productStats                  ProductReactionStat[]
+  productDetails                ProductReactionDetail[]
+  sendedFamilyGroupInvitation   FamilyGroupInvitation[] @relation("SentInvitations")
+  receivecFamilyGroupInvitation FamilyGroupInvitation[] @relation("ReceivedInvitations")
 
   @@map("users")
 }
@@ -282,16 +293,19 @@ model FamilyGroup {
   createdAt DateTime @default(now()) @map("created_at")
   chatId    String   @unique @map("chat_id")
 
-  members FamilyGroupMember[]
-  chat    Chat                @relation(fields: [chatId], references: [id])
+  members     FamilyGroupMember[]
+  invitations FamilyGroupInvitation[]
+
+  chat Chat @relation(fields: [chatId], references: [id])
 
   @@map("family_groups")
 }
 
 model FamilyGroupMember {
-  userId  String    @map("user_id")
-  groupId String    @map("group_id")
-  role    GroupRole @default(MEMBER)
+  userId     String    @unique @map("user_id")
+  groupId    String    @map("group_id")
+  role       GroupRole @default(MEMBER)
+  created_at DateTime  @default(now())
 
   user  User        @relation(fields: [userId], references: [id])
   group FamilyGroup @relation(fields: [groupId], references: [id])
@@ -299,6 +313,26 @@ model FamilyGroupMember {
   @@id([userId, groupId])
   @@index([groupId])
   @@map("family_members")
+}
+
+model FamilyGroupInvitation {
+  id        String           @id @default(uuid())
+  token     String           @unique
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime         @map("expires_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  groupId String      @map("group_id")
+  group   FamilyGroup @relation(fields: [groupId], references: [id])
+
+  invitedById String @map("invited_by_id")
+  invitedBy   User   @relation("SentInvitations", fields: [invitedById], references: [id])
+
+  invitedUserId String? @map("invited_user_id")
+  invitedUser   User?   @relation("ReceivedInvitations", fields: [invitedUserId], references: [id])
+
+  @@index([groupId])
+  @@map("family_group_invitations")
 }
 
 model Chat {

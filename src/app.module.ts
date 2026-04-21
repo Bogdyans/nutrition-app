@@ -9,6 +9,7 @@ import { ProfileModule } from './modules/open/profile/profile.module';
 import { StatsModule } from './modules/open/stats/stats.module';
 import { ReactionsModule } from './modules/open/reactions/reactions.module';
 import { RecommendationsModule } from './modules/open/recommendations/recommendations.module';
+import { FamilyModule } from './modules/open/family/family.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RecommendationsModule } from './modules/open/recommendations/recommenda
     StatsModule,
     ReactionsModule,
     RecommendationsModule,
+    FamilyModule,
   ],
 })
 export class AppModule {}
