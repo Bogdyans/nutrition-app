@@ -8,6 +8,7 @@ import { WeightHistoryModule } from './modules/open/weight-history/weight-histor
 import { ProfileModule } from './modules/open/profile/profile.module';
 import { StatsModule } from './modules/open/stats/stats.module';
 import { ReactionsModule } from './modules/open/reactions/reactions.module';
+import { RecommendationsModule } from './modules/open/recommendations/recommendations.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ReactionsModule } from './modules/open/reactions/reactions.module';
     ProfileModule,
     StatsModule,
     ReactionsModule,
+    RecommendationsModule,
   ],
 })
 export class AppModule {}
