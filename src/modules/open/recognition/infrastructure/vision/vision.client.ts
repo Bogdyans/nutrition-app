@@ -7,15 +7,21 @@ import { visionSchema } from '../../dto/vision-output.schema';
 @Injectable()
 export class VisionClient {
   private client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: 'https://openrouter.ai/api/v1',
+    defaultHeaders: {
+      'HTTP-Referer': 'http://localhost:3000',
+      'X-Title': 'perekusov-net',
+    },
   });
 
   async recognize(input: RecognizeInput) {
     const prompt = buildPrompt(input);
 
     const response = await this.client.responses.create({
-      model: 'gpt-4.1-mini',
-      instructions: 'Return ONLY valid JSON that matches the provided schema.',
+      model: 'google/gemma-4-31b-it:free',
+      instructions:
+        'Return ONLY valid JSON that matches the provided schema. the array of items SHOUD BE NAMED "items". Each item has "name" (In Russian), "grams"  and "confidence" (0 to 1, how much you confident in your answer)',
       input: [prompt],
       text: {
         format: {

@@ -41,6 +41,8 @@ export class MealVisionService {
       notes?: string[];
     };
 
+    console.log(raw);
+
     if (!raw?.items?.length) {
       throw new BadRequestException('No food detected');
     }

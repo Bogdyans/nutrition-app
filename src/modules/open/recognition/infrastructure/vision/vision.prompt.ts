@@ -10,7 +10,7 @@ export function buildPrompt(input: RecognizeInput) {
           Estimate weight in grams. 
           Be conservative. 
           Do not guess unseen ingredients.
-          ${input.hint ?? `Context: ${input.hint}`}`,
+          ${input.hint ? `Context: ${input.hint}` : ''}`,
       },
       {
         type: 'input_image' as const,
