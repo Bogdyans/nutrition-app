@@ -6,9 +6,11 @@ export function buildPrompt(input: RecognizeInput) {
     content: [
       {
         type: 'input_text' as const,
-        text: input.hint
-          ? `Analyze this meal photo. Context: ${input.hint}`
-          : 'Analyze this meal photo',
+        text: `Identify visible food items. 
+          Estimate weight in grams. 
+          Be conservative. 
+          Do not guess unseen ingredients.
+          ${input.hint ?? `Context: ${input.hint}`}`,
       },
       {
         type: 'input_image' as const,
