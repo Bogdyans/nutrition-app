@@ -23,7 +23,7 @@ export class GroqService {
 
     try {
       const completion = await this.client.chat.completions.create({
-        model: 'openrouter/elephant-alpha', // быстрый и бесплатный
+        model: 'google/gemma-4-31b-it:free',
         messages: [
           {
             role: 'system',
