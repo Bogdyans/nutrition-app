@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
-import { FamilyService } from './family.service';
+import { PrismaModule } from '../../core/prisma/prisma.module';
+import { ChatsModule } from '../chats/chats.module';
 import { FamilyController } from './family.controller';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { FamilyService } from './family.service';
 
 @Module({
+  imports: [PrismaModule, ChatsModule],
   controllers: [FamilyController],
-  providers: [FamilyService, PrismaService],
+  providers: [FamilyService],
+  exports: [FamilyService],
 })
 export class FamilyModule {}

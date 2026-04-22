@@ -4,22 +4,28 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { GroupRole, InvitationStatus, Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
+import { addDays } from 'date-fns';
+import { PrismaService } from '../../core/prisma/prisma.service';
+import { ChatsService } from '../chats/chats.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { InviteDto } from './dto/invite.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
-import { randomUUID } from 'crypto';
-import { addDays } from 'date-fns';
-import {
-  ChatRole,
-  GroupRole,
-  InvitationStatus,
-  Prisma,
-} from '@prisma/client';
-import { PrismaService } from '../../core/prisma/prisma.service';
 
 @Injectable()
 export class FamilyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly chatsService: ChatsService,
+  ) {}
+
+  private async syncFamilyChatMembers(
+    tx: Prisma.TransactionClient,
+    groupId: string,
+  ) {
+    await this.chatsService.syncFamilyChatMembers(tx, groupId);
+  }
 
   private async deleteGroupIfEmpty(
     tx: Prisma.TransactionClient,
@@ -43,29 +49,28 @@ export class FamilyService {
     return true;
   }
 
-  // ==============================
-  // CREATE GROUP
-  // ==============================
   async createGroup(userId: string, dto: CreateGroupDto) {
-    const existing = await this.prisma.familyGroupMember.findUnique({
-      where: { userId },
-    });
+    const name = dto.name.trim();
 
-    if (existing) {
-      throw new BadRequestException('User already in a group');
+    if (!name) {
+      throw new BadRequestException('Название группы не может быть пустым');
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const chat = await tx.chat.create({
-        data: {
-          type: 'GROUP',
-          name: dto.name,
-        },
+      const existing = await tx.familyGroupMember.findUnique({
+        where: { userId },
+        select: { userId: true },
       });
+
+      if (existing) {
+        throw new BadRequestException('User already in a group');
+      }
+
+      const chat = await this.chatsService.createFamilyChat(tx, { name });
 
       const group = await tx.familyGroup.create({
         data: {
-          name: dto.name,
+          name,
           chatId: chat.id,
         },
       });
@@ -78,30 +83,39 @@ export class FamilyService {
         },
       });
 
-      await tx.chatMember.create({
-        data: {
-          chatId: chat.id,
-          userId,
-          role: ChatRole.ADMIN,
-        },
-      });
+      await this.syncFamilyChatMembers(tx, group.id);
 
       return group;
     });
   }
 
-  // ==============================
-  // GET MY GROUP
-  // ==============================
   async getMyGroup(userId: string) {
     const membership = await this.prisma.familyGroupMember.findUnique({
       where: { userId },
-      include: {
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
         group: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            createdAt: true,
+            chatId: true,
             members: {
-              include: {
-                user: true,
+              select: {
+                userId: true,
+                groupId: true,
+                role: true,
+                created_at: true,
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    email: true,
+                    createdAt: true,
+                  },
+                },
               },
             },
           },
@@ -109,20 +123,26 @@ export class FamilyService {
       },
     });
 
-    if (!membership) return null;
+    if (!membership) {
+      return null;
+    }
 
     return membership.group;
   }
 
-  // ==============================
-  // INVITE
-  // ==============================
   async createInvitation(userId: string, dto: InviteDto) {
     const membership = await this.prisma.familyGroupMember.findUnique({
       where: { userId },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+      },
     });
 
-    if (!membership) throw new ForbiddenException('Not in group');
+    if (!membership) {
+      throw new ForbiddenException('Not in group');
+    }
 
     if (membership.role === GroupRole.MEMBER) {
       throw new ForbiddenException('No permission');
@@ -132,8 +152,9 @@ export class FamilyService {
       throw new BadRequestException('Cannot invite yourself');
     }
 
-    const invitedUser = await this.prisma.user.findUnique({
-      where: { id: dto.invitedUserId },
+    const invitedUser = await this.prisma.user.findFirst({
+      where: { id: dto.invitedUserId, deletedAt: null },
+      select: { id: true },
     });
 
     if (!invitedUser) {
@@ -142,6 +163,7 @@ export class FamilyService {
 
     const invitedMembership = await this.prisma.familyGroupMember.findUnique({
       where: { userId: dto.invitedUserId },
+      select: { userId: true },
     });
 
     if (invitedMembership) {
@@ -155,16 +177,15 @@ export class FamilyService {
         invitedById: userId,
         invitedUserId: dto.invitedUserId,
         expiresAt: addDays(new Date(), 2),
+        status: InvitationStatus.PENDING,
       },
     });
   }
 
-  // ==============================
-  // ACCEPT INVITE
-  // ==============================
   async acceptInvitation(userId: string, token: string) {
     const existing = await this.prisma.familyGroupMember.findUnique({
       where: { userId },
+      select: { userId: true },
     });
 
     if (existing) {
@@ -174,7 +195,12 @@ export class FamilyService {
     const invitation = await this.prisma.familyGroupInvitation.findUnique({
       where: { token },
       include: {
-        group: true,
+        group: {
+          select: {
+            id: true,
+            chatId: true,
+          },
+        },
       },
     });
 
@@ -199,16 +225,11 @@ export class FamilyService {
         data: {
           userId,
           groupId: invitation.groupId,
+          role: GroupRole.MEMBER,
         },
       });
 
-      await tx.chatMember.create({
-        data: {
-          chatId: invitation.group.chatId,
-          userId,
-          role: ChatRole.MEMBER,
-        },
-      });
+      await this.syncFamilyChatMembers(tx, invitation.groupId);
 
       await tx.familyGroupInvitation.update({
         where: { id: invitation.id },
@@ -219,13 +240,19 @@ export class FamilyService {
     });
   }
 
-  // ==============================
-  // LEAVE GROUP
-  // ==============================
   async leaveGroup(userId: string) {
     const membership = await this.prisma.familyGroupMember.findUnique({
       where: { userId },
-      include: { group: true },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+        group: {
+          select: {
+            chatId: true,
+          },
+        },
+      },
     });
 
     if (!membership) {
@@ -238,36 +265,34 @@ export class FamilyService {
 
     return this.prisma.$transaction(async (tx) => {
       await tx.familyGroupMember.delete({
-        where: {
-          userId_groupId: {
-            userId,
-            groupId: membership.groupId,
-          },
-        },
+        where: { userId },
       });
 
-      await tx.chatMember.delete({
-        where: {
-          chatId_userId: {
-            chatId: membership.group.chatId,
-            userId,
-          },
-        },
-      });
+      await this.syncFamilyChatMembers(tx, membership.groupId);
 
-      await this.deleteGroupIfEmpty(tx, membership.groupId, membership.group.chatId);
+      await this.deleteGroupIfEmpty(
+        tx,
+        membership.groupId,
+        membership.group.chatId,
+      );
 
       return { success: true };
     });
   }
 
-  // ==============================
-  // REMOVE MEMBER
-  // ==============================
   async removeMember(currentUserId: string, targetUserId: string) {
     const current = await this.prisma.familyGroupMember.findUnique({
       where: { userId: currentUserId },
-      include: { group: true },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+        group: {
+          select: {
+            chatId: true,
+          },
+        },
+      },
     });
 
     if (!current || current.role === GroupRole.MEMBER) {
@@ -276,6 +301,11 @@ export class FamilyService {
 
     const target = await this.prisma.familyGroupMember.findUnique({
       where: { userId: targetUserId },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+      },
     });
 
     if (!target || target.groupId !== current.groupId) {
@@ -292,22 +322,10 @@ export class FamilyService {
 
     return this.prisma.$transaction(async (tx) => {
       await tx.familyGroupMember.delete({
-        where: {
-          userId_groupId: {
-            userId: targetUserId,
-            groupId: current.groupId,
-          },
-        },
+        where: { userId: targetUserId },
       });
 
-      await tx.chatMember.delete({
-        where: {
-          chatId_userId: {
-            chatId: current.group.chatId,
-            userId: targetUserId,
-          },
-        },
-      });
+      await this.syncFamilyChatMembers(tx, current.groupId);
 
       await this.deleteGroupIfEmpty(tx, current.groupId, current.group.chatId);
 
@@ -315,13 +333,19 @@ export class FamilyService {
     });
   }
 
-  // ==============================
-  // UPDATE ROLE
-  // ==============================
   async updateRole(currentUserId: string, dto: UpdateRoleDto) {
     const current = await this.prisma.familyGroupMember.findUnique({
       where: { userId: currentUserId },
-      include: { group: true },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+        group: {
+          select: {
+            chatId: true,
+          },
+        },
+      },
     });
 
     if (!current || current.role !== GroupRole.OWNER) {
@@ -334,34 +358,44 @@ export class FamilyService {
 
     const target = await this.prisma.familyGroupMember.findUnique({
       where: { userId: dto.userId },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+      },
     });
 
     if (!target || target.groupId !== current.groupId) {
       throw new NotFoundException();
     }
 
-    await this.prisma.familyGroupMember.update({
-      where: {
-        userId_groupId: {
-          userId: dto.userId,
-          groupId: current.groupId,
+    await this.prisma.$transaction(async (tx) => {
+      await tx.familyGroupMember.update({
+        where: { userId: dto.userId },
+        data: {
+          role: dto.role,
         },
-      },
-      data: {
-        role: dto.role,
-      },
+      });
+
+      await this.syncFamilyChatMembers(tx, current.groupId);
     });
 
     return { success: true };
   }
 
-  // ==============================
-  // TRANSFER OWNERSHIP
-  // ==============================
   async transferOwnership(currentUserId: string, newOwnerId: string) {
     const current = await this.prisma.familyGroupMember.findUnique({
       where: { userId: currentUserId },
-      include: { group: true },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+        group: {
+          select: {
+            chatId: true,
+          },
+        },
+      },
     });
 
     if (!current || current.role !== GroupRole.OWNER) {
@@ -370,6 +404,11 @@ export class FamilyService {
 
     const target = await this.prisma.familyGroupMember.findUnique({
       where: { userId: newOwnerId },
+      select: {
+        userId: true,
+        groupId: true,
+        role: true,
+      },
     });
 
     if (!target || target.groupId !== current.groupId) {
@@ -380,27 +419,24 @@ export class FamilyService {
       throw new BadRequestException('Already owner');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.familyGroupMember.update({
-        where: {
-          userId_groupId: {
-            userId: currentUserId,
-            groupId: current.groupId,
-          },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.familyGroupMember.update({
+        where: { userId: currentUserId },
+        data: {
+          role: GroupRole.ADMIN,
         },
-        data: { role: GroupRole.ADMIN },
-      }),
-      this.prisma.familyGroupMember.update({
-        where: {
-          userId_groupId: {
-            userId: newOwnerId,
-            groupId: current.groupId,
-          },
-        },
-        data: { role: GroupRole.OWNER },
-      }),
-    ]);
+      });
 
-    return { success: true };
+      await tx.familyGroupMember.update({
+        where: { userId: newOwnerId },
+        data: {
+          role: GroupRole.OWNER,
+        },
+      });
+
+      await this.syncFamilyChatMembers(tx, current.groupId);
+
+      return { success: true };
+    });
   }
 }

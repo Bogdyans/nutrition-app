@@ -44,7 +44,7 @@ enum GroupRole {
 
 enum ChatType {
   PRIVATE      @map("private")
-  GROUP        @map("group")
+  FAMILY       @map("family")
   CONSULTATION @map("consultation")
 
   @@map("chat_types")
@@ -302,7 +302,7 @@ model FamilyGroup {
 }
 
 model FamilyGroupMember {
-  userId     String    @unique @map("user_id")
+  userId     String    @id @map("user_id")
   groupId    String    @map("group_id")
   role       GroupRole @default(MEMBER)
   created_at DateTime  @default(now())
@@ -310,7 +310,6 @@ model FamilyGroupMember {
   user  User        @relation(fields: [userId], references: [id])
   group FamilyGroup @relation(fields: [groupId], references: [id])
 
-  @@id([userId, groupId])
   @@index([groupId])
   @@map("family_members")
 }
@@ -367,7 +366,6 @@ model Message {
   content   String
   createdAt DateTime  @default(now()) @map("created_at")
   deletedAt DateTime? @map("deleted_at")
-  readAt    DateTime? @map("read_at")
 
   chat   Chat @relation(fields: [chatId], references: [id])
   sender User @relation(fields: [senderId], references: [id])
