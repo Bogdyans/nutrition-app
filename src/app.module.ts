@@ -10,6 +10,7 @@ import { StatsModule } from './modules/open/stats/stats.module';
 import { ReactionsModule } from './modules/open/reactions/reactions.module';
 import { RecommendationsModule } from './modules/open/recommendations/recommendations.module';
 import { FamilyModule } from './modules/open/family/family.module';
+import { MealVisionModule } from './modules/open/recognition/recognition.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { FamilyModule } from './modules/open/family/family.module';
     ReactionsModule,
     RecommendationsModule,
     FamilyModule,
+    MealVisionModule,
   ],
 })
 export class AppModule {}
