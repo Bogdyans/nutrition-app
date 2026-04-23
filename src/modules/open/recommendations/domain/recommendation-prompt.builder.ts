@@ -1,9 +1,11 @@
 import { RecommendationContext } from '../types/context';
+import { Injectable } from '@nestjs/common';
 
-export const buildRecommendationPrompt = (
-  context: RecommendationContext,
-): string => `
-Ты — AI-ассистент нутрициологического анализа. 
+@Injectable()
+export class RecommendationPromptBuilder {
+  build(context: RecommendationContext): string {
+    return `
+Ты — AI-ассистент нутрициологического анализа.
 Твоя задача — давать практичные, безопасные и основанные только на данных рекомендации.
 Не выдумывай информацию. Если данных недостаточно — прямо укажи это.
 Не ставь диагнозы и не используй медицинские утверждения.
@@ -34,7 +36,7 @@ MEALS_LAST_3:
 ${context.recentMeals
   .map(
     (m) => `
-- time: ${m.timestamp}
+- time: ${m.timestamp.toISOString()}
   kcal: ${m.totals.calories.toFixed(0)}
   proteins: ${m.totals.proteins.toFixed(1)}
   fats: ${m.totals.fats.toFixed(1)}
@@ -76,3 +78,5 @@ OUTPUT FORMAT (строго соблюдать):
 ## Мотивация
 (1–2 предложения, без воды)
 `;
+  }
+}

@@ -15,7 +15,7 @@ export function buildPrompt(input: RecognizeInput) {
       {
         type: 'input_image' as const,
         image_url: `data:${input.mimeType};base64,${input.imageBase64}`,
-        detail: 'high' as const,
+        detail: 'low' as const,
       },
     ],
   };

@@ -162,8 +162,6 @@ model User {
   meals                         Meal[]
   reactions                     Reaction[]
   groupMemberships              FamilyGroupMember[]
-  subscriptions                 Subscription[]
-  payments                      Payment[]
   messages                      Message[]
   recommendation                Recommendation[]
   chatMembers                   ChatMember[]
@@ -387,62 +385,6 @@ model Achievement {
   @@index([userId, date])
   @@index([type])
   @@map("achievements")
-}
-
-model Plan {
-  id       String          @id @default(uuid())
-  name     String
-  price    Decimal         @db.Decimal(10, 2)
-  currency String
-  interval BillingInterval
-  info     Json
-
-  subscriptions Subscription[]
-
-  @@map("plans")
-}
-
-model Subscription {
-  id String @id @default(uuid())
-
-  userId         String             @map("user_id")
-  planId         String             @map("plan_id")
-  status         SubscriptionStatus @default(PENDING)
-  startDate      DateTime           @map("start_date")
-  endDate        DateTime           @map("end_date")
-  cancelAtTheEnd Boolean            @default(false) @map("cancel_at_the_end")
-
-  plan     Plan      @relation(fields: [planId], references: [id])
-  user     User      @relation(fields: [userId], references: [id])
-  payments Payment[]
-
-  @@index([userId, status])
-  @@index([planId])
-  @@index([status, endDate])
-  @@map("subscriptions")
-}
-
-model Payment {
-  id                String        @id @default(uuid())
-  userId            String        @map("user_id")
-  subscriptionId    String        @map("subscription_id")
-  amount            Decimal       @db.Decimal(10, 2)
-  currency          String
-  status            PaymentStatus
-  provider          String
-  providerPaymentId String        @unique @map("provider_payment_id")
-  paidAt            DateTime?     @map("paid_at")
-  createdAt         DateTime      @default(now()) @map("created_at")
-
-  user         User         @relation(fields: [userId], references: [id])
-  subscription Subscription @relation(fields: [subscriptionId], references: [id])
-
-  @@index([userId])
-  @@index([subscriptionId])
-  @@index([status])
-  @@index([paidAt])
-  @@index([userId, createdAt])
-  @@map("payments")
 }
 
 model WeightHistory {

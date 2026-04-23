@@ -56,10 +56,10 @@ export class ReactionStatsDomainService {
           },
           ...(hasReactions
             ? {
-              reactionMealsCount: {
-                increment: 1,
-              },
-            }
+                reactionMealsCount: {
+                  increment: 1,
+                },
+              }
             : {}),
         },
       });

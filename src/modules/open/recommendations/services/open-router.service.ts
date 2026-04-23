@@ -1,52 +1,48 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
+import { RecommendationAiProvider } from '../domain/recommendation-ai.provider';
 
 @Injectable()
-export class GroqService {
-  private readonly logger = new Logger(GroqService.name);
+export class OpenRouterService implements RecommendationAiProvider {
+  private readonly logger = new Logger(OpenRouterService.name);
   private readonly client: OpenAI;
 
   constructor() {
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.RECOMMENDATION_OPENROUTER_API_KEY;
+    const apiUrl = process.env.RECOMMENDATION_OPENROUTER_API_URL;
     if (!apiKey) {
-      throw new Error('GROQ_API_KEY is not defined in .env');
+      throw new Error('OPENROUTER_API_KEY is not defined in .env');
     }
-
     this.client = new OpenAI({
       apiKey,
-      baseURL: 'https://openrouter.ai/api/v1',
+      baseURL: apiUrl,
+      timeout: 60000,
     });
   }
 
   async generateText(prompt: string): Promise<string> {
-    console.log(prompt);
-
+    const model = process.env.RECOMMENDATION_OPENROUTER_MODEL;
+    if (!model) throw new Error('OPENROUTER_MODEL not defined in .env');
     try {
       const completion = await this.client.chat.completions.create({
-        model: 'google/gemma-4-31b-it:free',
+        model,
         messages: [
           {
             role: 'system',
             content: 'Ты — нутрициолог. Отвечай только на русском.',
           },
-          {
-            role: 'user',
-            content: prompt,
-          },
+          { role: 'user', content: prompt },
         ],
-        temperature: 1,
+        temperature: 0.5,
         max_completion_tokens: 1024,
         top_p: 1,
         stream: false,
       });
-
       const text = completion.choices?.[0]?.message?.content;
-
-      if (!text) throw new Error('Empty response from Groq');
-
+      if (!text) throw new Error('Empty response from Groq/OpenRouter');
       return text.trim();
     } catch (error) {
-      this.logger.error('Groq API error', error);
+      this.logger.error('OpenRouter API error', error as Error);
       throw new Error(
         'Не удалось получить рекомендацию от ИИ. Попробуйте позже.',
       );

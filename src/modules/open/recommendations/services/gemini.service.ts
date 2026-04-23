@@ -4,9 +4,10 @@ import {
   HarmCategory,
   HarmBlockThreshold,
 } from '@google/generative-ai';
+import { RecommendationAiProvider } from '../domain/recommendation-ai.provider';
 
 @Injectable()
-export class GeminiService {
+export class GeminiService implements RecommendationAiProvider {
   private readonly logger = new Logger(GeminiService.name);
   private readonly genAI: GoogleGenerativeAI;
 
@@ -47,7 +48,7 @@ export class GeminiService {
       if (!response) throw new Error('Empty response from Gemini');
       return response.trim();
     } catch (error) {
-      this.logger.error('Gemini API error', error);
+      this.logger.error('Gemini API error', error as Error);
       throw new Error(
         'Не удалось получить рекомендацию от ИИ. Попробуйте позже.',
       );
