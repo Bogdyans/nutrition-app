@@ -7,8 +7,8 @@ import { visionSchema } from '../../dto/vision-output.schema';
 @Injectable()
 export class VisionClient {
   private client = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: process.env.VISION_OPENROUTER_API_KEY,
+    baseURL: process.env.VISION_OPENROUTER_API_URL,
     defaultHeaders: {
       'HTTP-Referer': 'http://localhost:3000',
       'X-Title': 'perekusov-net',
