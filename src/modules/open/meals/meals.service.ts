@@ -53,33 +53,45 @@ export class MealsService {
     return [...new Set(values)];
   }
 
-  private startOfUtcDay(value: string | Date) {
-    const date = new Date(value);
+  private startOfLocalDayUtc(
+    dateString: string,
+    timezoneOffsetMinutes: number,
+  ) {
+    const [year, month, day] = dateString.split('-').map(Number);
+
     return new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+      Date.UTC(year, month - 1, day, 0, -timezoneOffsetMinutes, 0, 0),
     );
   }
 
-  private endOfUtcDay(value: string | Date) {
-    const end = this.startOfUtcDay(value);
-    end.setUTCDate(end.getUTCDate() + 1);
-    return end;
+  private endOfLocalDayUtc(dateString: string, timezoneOffsetMinutes: number) {
+    const start = this.startOfLocalDayUtc(dateString, timezoneOffsetMinutes);
+
+    start.setUTCDate(start.getUTCDate() + 1);
+
+    return start;
   }
 
-  private resolveRange(query: GetMealsDto) {
+  private resolveRange(query: GetMealsDto, timezoneOffsetMinutes: number) {
     if (query.date && (query.from || query.to)) {
       throw new BadRequestException('Use either date or from/to');
     }
 
     if (query.date) {
-      const start = this.startOfUtcDay(query.date);
-      const end = this.endOfUtcDay(query.date);
-      return { start, end };
+      return {
+        start: this.startOfLocalDayUtc(query.date, timezoneOffsetMinutes),
+        end: this.endOfLocalDayUtc(query.date, timezoneOffsetMinutes),
+      };
     }
 
     if (query.from || query.to) {
-      const start = query.from ? this.startOfUtcDay(query.from) : new Date(0);
-      const end = query.to ? this.endOfUtcDay(query.to) : new Date();
+      const start = query.from
+        ? this.startOfLocalDayUtc(query.from, timezoneOffsetMinutes)
+        : new Date(0);
+
+      const end = query.to
+        ? this.endOfLocalDayUtc(query.to, timezoneOffsetMinutes)
+        : new Date();
 
       if (start > end) {
         throw new BadRequestException('Invalid date range');
@@ -89,10 +101,17 @@ export class MealsService {
     }
 
     const today = new Date();
-    const start = this.startOfUtcDay(today);
-    const end = this.endOfUtcDay(today);
 
-    return { start, end };
+    const localToday = new Date(
+      today.getTime() - timezoneOffsetMinutes * 60_000,
+    )
+      .toISOString()
+      .slice(0, 10);
+
+    return {
+      start: this.startOfLocalDayUtc(localToday, timezoneOffsetMinutes),
+      end: this.endOfLocalDayUtc(localToday, timezoneOffsetMinutes),
+    };
   }
 
   private async lockMealOrThrow(
@@ -213,19 +232,6 @@ export class MealsService {
     }));
   }
 
-  private severityScore(severity: SeverityLevel | null | undefined) {
-    switch (severity) {
-      case SeverityLevel.LOW:
-        return 1;
-      case SeverityLevel.MEDIUM:
-        return 2;
-      case SeverityLevel.HIGH:
-        return 3;
-      default:
-        return 0;
-    }
-  }
-
   private toMealResponse(meal: MealWithItems) {
     const items = meal.items.map((item) => {
       const factor = item.weightG / 100;
@@ -311,8 +317,12 @@ export class MealsService {
     });
   }
 
-  async findMany(userId: string, query: GetMealsDto) {
-    const { start, end } = this.resolveRange(query);
+  async findMany(
+    userId: string,
+    query: GetMealsDto,
+    timezoneOffsetMinutes: number,
+  ) {
+    const { start, end } = this.resolveRange(query, timezoneOffsetMinutes);
     const limit = query.limit ?? 10;
 
     const where: Prisma.MealWhereInput = {
