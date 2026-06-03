@@ -31,7 +31,7 @@ export class FamilyController {
 
   @Get('me')
   getMy(@CurrentUser() user: SessionUserDataFromJwt) {
-    return this.service.getMyGroup(user.id);
+    return this.service.getMyGroupAndInvitations(user.id);
   }
 
   @Post('invite')

@@ -89,13 +89,11 @@ export class FamilyService {
     });
   }
 
-  async getMyGroup(userId: string) {
+  async getMyGroupAndInvitations(userId: string) {
+    // 1. Ищем группу, в которой состоит юзер, и вытаскиваем её со всеми связями
     const membership = await this.prisma.familyGroupMember.findUnique({
       where: { userId },
       select: {
-        userId: true,
-        groupId: true,
-        role: true,
         group: {
           select: {
             id: true,
@@ -123,11 +121,44 @@ export class FamilyService {
       },
     });
 
+    // 2. Ищем все активные инвайты, которые были отправлены ЭТОМУ пользователю
+    // (В схеме Prisma это связь receivecFamilyGroupInvitation)
+    const pendingInvitations = await this.prisma.familyGroupInvitation.findMany(
+      {
+        where: {
+          invitedUserId: userId,
+          status: 'PENDING', // Вытаскиваем только со статусом PENDING
+        },
+        // Если фронтенду внутри инвайта нужны данные о том, КТО пригласил или какая группа:
+        include: {
+          group: true,
+          invitedBy: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+        },
+      },
+    );
+
+    // 3. Возвращаем строго ту структуру, которую ждет интерфейс FamilyMeResponse
     if (!membership) {
-      return null;
+      return {
+        group: null,
+        pendingInvitations,
+      };
     }
 
-    return membership.group;
+    console.log({
+      group: membership.group,
+      pendingInvitations,
+    });
+
+    return {
+      group: membership.group,
+      pendingInvitations,
+    };
   }
 
   async createInvitation(userId: string, dto: InviteDto) {
@@ -241,6 +272,7 @@ export class FamilyService {
   }
 
   async leaveGroup(userId: string) {
+    // 1. Ищем мембера и сразу тянем количество участников в этой группе
     const membership = await this.prisma.familyGroupMember.findUnique({
       where: { userId },
       select: {
@@ -250,6 +282,9 @@ export class FamilyService {
         group: {
           select: {
             chatId: true,
+            _count: {
+              select: { members: true }, // Считаем, сколько всего людей в группе
+            },
           },
         },
       },
@@ -259,17 +294,30 @@ export class FamilyService {
       throw new BadRequestException('Not in group');
     }
 
+    // 2. Если это OWNER, проверяем количество людей в группе
     if (membership.role === GroupRole.OWNER) {
-      throw new BadRequestException('Owner must transfer ownership');
+      const totalMembers = membership.group._count.members;
+
+      // Если кроме него кто-то есть — выходить нельзя, пусть передает права
+      if (totalMembers > 1) {
+        throw new BadRequestException(
+          'Owner must transfer ownership before leaving',
+        );
+      }
     }
 
+    // 3. Запускаем транзакцию удаления
     return this.prisma.$transaction(async (tx) => {
+      // Удаляем единственного владельца (или обычного мембера) из таблицы маппинга
       await tx.familyGroupMember.delete({
         where: { userId },
       });
 
+      // Синхронизируем участников чата
       await this.syncFamilyChatMembers(tx, membership.groupId);
 
+      // Этот метод теперь сработает триггером: так как участников стало 0,
+      // он полностью удалит запись группы из family_groups и связанный чат
       await this.deleteGroupIfEmpty(
         tx,
         membership.groupId,
