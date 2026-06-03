@@ -19,11 +19,15 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { SearchMessagesDto } from './dto/search-messages.dto';
 import { GetMessagesDto } from './dto/get-messages.dto';
+import { ChatsGateway } from './chats.gateway';
 
 @UseGuards(JwtAuthGuard)
 @Controller('chats')
 export class ChatsController {
-  constructor(private readonly chatsService: ChatsService) {}
+  constructor(
+    private readonly chatsService: ChatsService,
+    private readonly chatsGateway: ChatsGateway,
+  ) {}
 
   @Get()
   listMyChats(@CurrentUser() user: SessionUserDataFromJwt) {
@@ -73,30 +77,45 @@ export class ChatsController {
   }
 
   @Post(':chatId/messages')
-  sendMessage(
+  async sendMessage(
     @CurrentUser() user: SessionUserDataFromJwt,
     @Param('chatId') chatId: string,
     @Body() dto: SendMessageDto,
   ) {
-    return this.chatsService.sendMessage(user.id, chatId, dto);
+    const message = await this.chatsService.sendMessage(user.id, chatId, dto);
+    this.chatsGateway.emitToChat(chatId, 'message:new', message, user.id);
+    return message;
   }
 
   @Patch(':chatId/messages/:messageId')
-  updateMessage(
+  async updateMessage(
     @CurrentUser() user: SessionUserDataFromJwt,
     @Param('chatId') chatId: string,
     @Param('messageId') messageId: string,
     @Body() dto: UpdateMessageDto,
   ) {
-    return this.chatsService.updateMessage(user.id, chatId, messageId, dto);
+    const message = await this.chatsService.updateMessage(
+      user.id,
+      chatId,
+      messageId,
+      dto,
+    );
+    this.chatsGateway.emitToChat(chatId, 'message:updated', message, user.id);
+    return message;
   }
 
   @Delete(':chatId/messages/:messageId')
-  deleteMessage(
+  async deleteMessage(
     @CurrentUser() user: SessionUserDataFromJwt,
     @Param('chatId') chatId: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.chatsService.deleteMessage(user.id, chatId, messageId);
+    const message = await this.chatsService.deleteMessage(
+      user.id,
+      chatId,
+      messageId,
+    );
+    this.chatsGateway.emitToChat(chatId, 'message:deleted', message, user.id);
+    return message;
   }
 }

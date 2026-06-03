@@ -13,6 +13,6 @@ import { TokenService } from './token/token.service';
   imports: [PassportModule, JwtModule.register({}), PrismaModule, UsersModule],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy, TokenService],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

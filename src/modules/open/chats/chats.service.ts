@@ -189,6 +189,14 @@ export class ChatsService {
     });
   }
 
+  async checkChatAccess(chatId: string, userId: string): Promise<boolean> {
+    const membership = await this.prisma.chatMember.findFirst({
+      where: { chatId, userId },
+      select: { chatId: true },
+    });
+    return !!membership;
+  }
+
   async createConsultationChat(userId: string, dto: CreateConsultationChatDto) {
     if (userId === dto.consultantId) {
       throw new BadRequestException('Нельзя создать чат с самим собой');
