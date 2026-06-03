@@ -461,6 +461,17 @@ export class MealsService {
         );
       }
 
+      const isLastItem = meal.items.length === 1;
+
+      if (isLastItem) {
+        await tx.meal.delete({
+          where: { id: mealId },
+        });
+
+        return null;
+      }
+
+      // 3. Если предметы еще остались, обновляем и возвращаем meal
       const updated = await tx.meal.findUniqueOrThrow({
         where: { id: mealId },
         include: {
@@ -475,7 +486,6 @@ export class MealsService {
       return this.toMealResponse(updated);
     });
   }
-
   async updateMeal(userId: string, mealId: string, dto: UpdateMealDto) {
     await this.getMealOwnedByUserOrThrow(this.prisma, userId, mealId);
 

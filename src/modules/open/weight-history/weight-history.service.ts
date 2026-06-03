@@ -43,27 +43,30 @@ export class WeightHistoryService {
         dto.measuredAt ?? new Date().toISOString(),
       );
 
-      try {
-        const newRecord = await tx.weightHistory.create({
-          data: {
+      // Используем upsert для автоматического создания или обновления
+      const record = await tx.weightHistory.upsert({
+        where: {
+          // Предполагается стандартный составной уникальный ключ в Prisma schema:
+          // @@unique([userId, measuredAt])
+          userId_measuredAt: {
             userId,
-            weightInKg: dto.weightInKg,
             measuredAt,
           },
-        });
+        },
+        update: {
+          weightInKg: dto.weightInKg, // Если запись найдена, просто перезаписываем вес
+        },
+        create: {
+          userId,
+          weightInKg: dto.weightInKg, // Если записи нет, создаем новую
+          measuredAt,
+        },
+      });
 
-        await this.recomputeCurrentWeight(tx, userId);
+      // Пересчитываем текущий вес пользователя (сработает корректно и при создании, и при обновлении)
+      await this.recomputeCurrentWeight(tx, userId);
 
-        return newRecord;
-      } catch (e) {
-        if (
-          e instanceof Prisma.PrismaClientKnownRequestError &&
-          e.code === 'P2002'
-        ) {
-          throw new ConflictException('Запись веса на эту дату уже существует');
-        }
-        throw e;
-      }
+      return record;
     });
   }
 

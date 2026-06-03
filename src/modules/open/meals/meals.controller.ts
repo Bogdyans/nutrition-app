@@ -30,7 +30,6 @@ export class MealsController {
     @CurrentUser() user: SessionUserDataFromJwt,
     @Body() dto: CreateMealDto,
   ) {
-    console.log(dto);
     return this.mealsService.create(user.id, dto);
   }
 
@@ -41,8 +40,6 @@ export class MealsController {
     @Headers('x-timezone-offset')
     timezoneOffset?: string,
   ) {
-    console.log(timezoneOffset);
-
     return this.mealsService.findMany(
       user.id,
       query,
