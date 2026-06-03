@@ -11,6 +11,7 @@ import { ReactionsModule } from './modules/open/reactions/reactions.module';
 import { RecommendationsModule } from './modules/open/recommendations/recommendations.module';
 import { FamilyModule } from './modules/open/family/family.module';
 import { MealVisionModule } from './modules/open/recognition/recognition.module';
+import { OpenUsersModule } from './modules/open/users/open-users.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MealVisionModule } from './modules/open/recognition/recognition.module'
     RecommendationsModule,
     FamilyModule,
     MealVisionModule,
+    OpenUsersModule,
   ],
 })
 export class AppModule {}
