@@ -58,8 +58,8 @@ export class ChatsGateway
      * payload to `socket.user`. On failure the connection is rejected.
      */
     server.use((socket: AuthSocket, next) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const token: string | undefined = socket.handshake.auth?.token;
+
       if (!token) {
         return next(new Error('Unauthorized: no token'));
       }
