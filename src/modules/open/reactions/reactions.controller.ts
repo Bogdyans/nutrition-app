@@ -17,6 +17,7 @@ import { ReactionsService } from './services/reactions.service';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import type { JwtPayload } from '../../core/auth/types';
 import { ReactionsCRUDService } from './services/reactions-crud.service';
+import { ReactionStatsQueryService } from './services/reaction-stats.query.service';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -25,6 +26,7 @@ export class ReactionsController {
   constructor(
     private readonly service: ReactionsService,
     private readonly crudService: ReactionsCRUDService,
+    private readonly statsQuery: ReactionStatsQueryService,
   ) {}
 
   @Post()
@@ -68,6 +70,24 @@ export class ReactionsController {
   }
 
   // --- stats ---
+
+  @Get('/stats/products')
+  getProductsStats(@CurrentUser() user: JwtPayload) {
+    return this.statsQuery.getProductsStats(user.id);
+  }
+
+  @Get('/stats/overview')
+  getStatsOverview(@CurrentUser() user: JwtPayload) {
+    return this.statsQuery.getOverview(user.id);
+  }
+
+  @Get('/stats/reaction/:reactionId')
+  getReactionDetails(
+    @CurrentUser() user: JwtPayload,
+    @Param('reactionId') reactionId: string,
+  ) {
+    return this.statsQuery.getReactionDetails(user.id, reactionId);
+  }
 
   @Get('/product/:productId/stats')
   getStats(

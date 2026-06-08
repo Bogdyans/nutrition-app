@@ -4,6 +4,7 @@ import { ReactionsController } from './reactions.controller';
 import { ReactionsService } from './services/reactions.service';
 import { ReactionsCRUDService } from './services/reactions-crud.service';
 import { ReactionStatsDomainService } from './services/reaction-stats.domain.service';
+import { ReactionStatsQueryService } from './services/reaction-stats.query.service';
 
 @Module({
   imports: [PrismaModule],
@@ -12,6 +13,7 @@ import { ReactionStatsDomainService } from './services/reaction-stats.domain.ser
     ReactionsService,
     ReactionsCRUDService,
     ReactionStatsDomainService,
+    ReactionStatsQueryService,
   ],
 })
 export class ReactionsModule {}
