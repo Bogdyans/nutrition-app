@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, SeverityLevel } from '@prisma/client';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { GetStatsDayDto } from './dto/get-stats-date.dto';
 import { GetStatsRangeDto } from './dto/get-stats-range.dto';
@@ -30,6 +30,20 @@ type MealWithItems = Prisma.MealGetPayload<{
   };
 }>;
 
+type MealWithItemsAndReactions = Prisma.MealGetPayload<{
+  include: {
+    items: { include: { product: true } };
+    mealReactions: { include: { reaction: true } };
+  };
+}>;
+
+type MealReactionBreakdown = {
+  id: string;
+  reactionId: string;
+  name: string;
+  severity: SeverityLevel | null;
+};
+
 type MealItemBreakdown = {
   id: string;
   productId: string;
@@ -46,6 +60,7 @@ type MealBreakdown = {
   timestamp: string;
   photoUrl: string | null;
   items: MealItemBreakdown[];
+  reactions: MealReactionBreakdown[];
   totals: NutritionTotals;
 };
 
@@ -221,7 +236,7 @@ export class StatsService {
     });
   }
 
-  private toMealBreakdown(meal: MealWithItems): MealBreakdown {
+  private toMealBreakdown(meal: MealWithItemsAndReactions): MealBreakdown {
     const items = meal.items.map((item) => {
       const factor = item.weightG / 100;
 
@@ -237,11 +252,19 @@ export class StatsService {
       };
     });
 
+    const reactions: MealReactionBreakdown[] = meal.mealReactions.map((mr) => ({
+      id: mr.id,
+      reactionId: mr.userReactionId,
+      name: mr.reaction.name,
+      severity: mr.severity,
+    }));
+
     return {
       id: meal.id,
       timestamp: meal.timestamp.toISOString(),
       photoUrl: meal.photoUrl,
       items,
+      reactions,
       totals: this.toNormalizedTotals(calculateMealTotalsRaw(meal)),
     };
   }
@@ -288,6 +311,11 @@ export class StatsService {
         items: {
           include: {
             product: true,
+          },
+        },
+        mealReactions: {
+          include: {
+            reaction: true,
           },
         },
       },

@@ -11,7 +11,17 @@ import { UpdateReactionDto } from '../dto/update-reaction.dto';
 export class ReactionsCRUDService {
   constructor(private prisma: PrismaService) {}
 
+  private static readonly MAX_REACTIONS_PER_USER = 10;
+
   async create(userId: string, dto: CreateReactionDto) {
+    const count = await this.prisma.reaction.count({ where: { userId } });
+
+    if (count >= ReactionsCRUDService.MAX_REACTIONS_PER_USER) {
+      throw new BadRequestException(
+        `Можно создать не более ${ReactionsCRUDService.MAX_REACTIONS_PER_USER} реакций`,
+      );
+    }
+
     return this.prisma.reaction.create({
       data: {
         userId,
