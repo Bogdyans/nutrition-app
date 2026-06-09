@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MealVisionController } from './recognition.controller';
 import { MealVisionService } from './recognition.service';
+import { UserThrottlerGuard } from '../../../shared/guards/user-throttler.guard';
 
 describe('MealVisionController', () => {
   let controller: MealVisionController;
@@ -18,7 +19,10 @@ describe('MealVisionController', () => {
           useValue: mockService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(UserThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get(MealVisionController);
   });
@@ -28,16 +32,18 @@ describe('MealVisionController', () => {
   });
 
   it('should call service.recognize', async () => {
-    mockService.recognize.mockResolvedValue({ items: [] });
+    mockService.recognize.mockResolvedValue({ items: [], unmatched: [] });
 
     const file = {
       buffer: Buffer.from('test'),
       mimetype: 'image/jpeg',
     } as Express.Multer.File;
 
-    await controller.recognize(file, { hint: 'salad' });
+    const user = { id: 'user-1' } as any;
 
-    expect(mockService.recognize).toHaveBeenCalledWith(file, {
+    await controller.recognize(user, file, { hint: 'salad' });
+
+    expect(mockService.recognize).toHaveBeenCalledWith('user-1', file, {
       hint: 'salad',
     });
   });

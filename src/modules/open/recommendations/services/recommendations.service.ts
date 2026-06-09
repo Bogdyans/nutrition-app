@@ -25,7 +25,6 @@ export class RecommendationsService {
     const prompt = this.promptBuilder.build(context);
 
     this.logger.log(`Генерация рекомендации для пользователя ${userId}`);
-    console.log(prompt);
     const content = await this.ai.generateText(prompt);
 
     const recommendation = await this.recommendationsRepository.create(

@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import OpenAI from 'openai';
 import { RecommendationAiProvider } from '../domain/recommendation-ai.provider';
 
@@ -34,7 +38,7 @@ export class OpenRouterService implements RecommendationAiProvider {
           { role: 'user', content: prompt },
         ],
         temperature: 0.5,
-        max_completion_tokens: 1024,
+        max_completion_tokens: 2000,
         top_p: 1,
         stream: false,
       });
@@ -43,7 +47,7 @@ export class OpenRouterService implements RecommendationAiProvider {
       return text.trim();
     } catch (error) {
       this.logger.error('OpenRouter API error', error as Error);
-      throw new Error(
+      throw new ServiceUnavailableException(
         'Не удалось получить рекомендацию от ИИ. Попробуйте позже.',
       );
     }

@@ -1,19 +1,41 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { VisionClient } from './infrastructure/vision/vision.client';
 import { VisionParser } from './infrastructure/vision/vision.parser';
 import { withRetry } from './infrastructure/vision/vision.retry';
 import { normalizeItems } from './domain/normalize';
-import { RecognizeMealResult } from './domain/types';
+import {
+  parseVisionOutput,
+  ParsedVisionOutput,
+} from './domain/vision-output.validator';
+import {
+  collectSearchTerms,
+  matchProducts,
+} from './domain/product-matcher';
+import { RecognitionResult } from './domain/types';
 import { RecognizeMealDto } from './dto/recognize.dto';
+import { ProductsService } from '../products/products.service';
 
 @Injectable()
 export class MealVisionService {
-  constructor(private readonly vision: VisionClient) {}
+  private readonly logger = new Logger(MealVisionService.name);
+
+  constructor(
+    private readonly vision: VisionClient,
+    private readonly products: ProductsService,
+  ) {}
 
   async recognize(
+    userId: string,
     file: Express.Multer.File,
     dto: RecognizeMealDto,
-  ): Promise<RecognizeMealResult> {
+  ): Promise<RecognitionResult> {
     if (!file?.buffer) {
       throw new BadRequestException('Invalid file');
     }
@@ -24,32 +46,43 @@ export class MealVisionService {
 
     const base64 = file.buffer.toString('base64');
 
-    const response = await withRetry(() =>
-      this.vision.recognize({
-        imageBase64: base64,
-        mimeType: file.mimetype,
-        hint: dto.hint,
-      }),
-    );
+    let rawText: string;
+    try {
+      rawText = await withRetry(() =>
+        this.vision.recognize({
+          imageBase64: base64,
+          mimeType: file.mimetype,
+          hint: dto.hint,
+        }),
+      );
+    } catch (error) {
+      this.logger.error('Vision provider request failed', error as Error);
+      throw new ServiceUnavailableException(
+        'Сервис распознавания временно недоступен. Попробуйте позже.',
+      );
+    }
 
-    const raw = VisionParser.safeParse(response.output_text) as {
-      items: {
-        name: string;
-        grams: number;
-        confidence: number;
-      }[];
-      notes?: string[];
-    };
+    let parsed: ParsedVisionOutput;
+    try {
+      parsed = parseVisionOutput(VisionParser.safeParse(rawText));
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new UnprocessableEntityException((error as Error).message);
+    }
 
-    console.log(raw);
-
-    if (!raw?.items?.length) {
+    if (!parsed.items.length) {
       throw new BadRequestException('No food detected');
     }
 
-    return {
-      items: normalizeItems(raw.items),
-      notes: raw.notes,
-    };
+    const recognizedItems = normalizeItems(parsed.items);
+
+    const candidates = await this.products.findAvailableMatchingTerms(
+      userId,
+      collectSearchTerms(recognizedItems),
+    );
+
+    const { items, unmatched } = matchProducts(recognizedItems, candidates);
+
+    return { items, unmatched, notes: parsed.notes };
   }
 }

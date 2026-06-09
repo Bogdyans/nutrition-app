@@ -71,6 +71,36 @@ export class ProductsService {
     };
   }
 
+  /**
+   * Products visible to the user whose name contains any of `terms`. Used by
+   * meal-photo recognition to find catalogue products for recognized foods.
+   * Reuses the same visibility rules as {@link findAvailableForUser}.
+   */
+  async findAvailableMatchingTerms(userId: string, terms: string[], take = 50) {
+    const cleaned = [...new Set(terms.map((t) => t.trim()).filter(Boolean))];
+    if (!cleaned.length) return [];
+
+    return this.prisma.product.findMany({
+      take,
+      where: {
+        deletedAt: null,
+        OR: [
+          { ownerId: userId },
+          { visibility: ProductVisibility.SHARED },
+          { visibility: ProductVisibility.PUBLIC },
+        ],
+        AND: [
+          {
+            OR: cleaned.map((term) => ({
+              name: { contains: term, mode: 'insensitive' as const },
+            })),
+          },
+        ],
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async updateVisibility(
     userId: string,
     productId: string,

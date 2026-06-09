@@ -25,14 +25,8 @@ export class RecommendationContextBuilder {
   async build(userId: string): Promise<RecommendationContext> {
     const sevenDaysAgo = this.getUtcDateDaysAgo(7);
 
-    const [
-      user,
-      recentMeals,
-      reactions,
-      reactionDetails,
-      reactionStats,
-      weightHistory,
-    ] = await Promise.all([
+    const [user, recentMeals, reactions, reactionDetails, weightHistory] =
+      await Promise.all([
       this.prisma.user.findFirst({
         where: { id: userId, deletedAt: null },
         select: {
@@ -76,14 +70,6 @@ export class RecommendationContextBuilder {
           count: true,
         },
       }),
-      this.prisma.productReactionStat.findMany({
-        where: { userId },
-        include: {
-          product: { select: { name: true } },
-        },
-        orderBy: { reactionMealsCount: 'desc' },
-        take: 5,
-      }),
       this.prisma.weightHistory.findMany({
         where: {
           userId,
@@ -124,10 +110,6 @@ export class RecommendationContextBuilder {
       reactions: reactions.map((reaction) => ({
         name: reaction.name,
         reactionRate: reactionRates.get(reaction.id) ?? 0,
-      })),
-      topReactedProducts: reactionStats.map((stat) => ({
-        product: stat.product.name,
-        reactionMealsCount: stat.reactionMealsCount,
       })),
     };
   }

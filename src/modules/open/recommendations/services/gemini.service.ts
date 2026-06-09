@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import {
   GoogleGenerativeAI,
   HarmCategory,
@@ -49,7 +53,7 @@ export class GeminiService implements RecommendationAiProvider {
       return response.trim();
     } catch (error) {
       this.logger.error('Gemini API error', error as Error);
-      throw new Error(
+      throw new ServiceUnavailableException(
         'Не удалось получить рекомендацию от ИИ. Попробуйте позже.',
       );
     }
