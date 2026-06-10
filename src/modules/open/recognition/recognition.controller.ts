@@ -32,7 +32,6 @@ export class MealVisionController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: RecognizeMealDto,
   ) {
-    console.log('controller');
     return this.service.recognize(user.id, file, dto);
   }
 }

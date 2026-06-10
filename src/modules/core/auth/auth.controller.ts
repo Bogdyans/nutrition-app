@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -16,6 +17,9 @@ import type { RequestWithUser, SessionUserDataFromJwt } from './types';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { UsersService } from '../../closed/users/users.service';
 
+// IP-based throttling (no authenticated user yet) — slows brute force and
+// credential stuffing. Unannotated routes get the global default (30/min).
+@UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -23,11 +27,13 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(AuthGuard('local'))
   @Post('login')
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -35,6 +41,7 @@ export class AuthController {
     return this.authService.issueTokens(req.user);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
     return this.authService.refresh(dto.refreshToken);

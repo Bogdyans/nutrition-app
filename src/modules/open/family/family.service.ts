@@ -150,11 +150,6 @@ export class FamilyService {
       };
     }
 
-    console.log({
-      group: membership.group,
-      pendingInvitations,
-    });
-
     return {
       group: membership.group,
       pendingInvitations,
