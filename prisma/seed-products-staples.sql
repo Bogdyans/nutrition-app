@@ -209,4 +209,4 @@ VALUES
   (gen_random_uuid(), 'Сок яблочный',                        46, 0.1,  0.1, 11.3, 'verified', 'public', NULL, now()),
   (gen_random_uuid(), 'Кока-кола',                           42, 0.0,  0.0, 10.6, 'verified', 'public', NULL, now()),
   (gen_random_uuid(), 'Пиво светлое',                        43, 0.5,  0.0,  3.6, 'verified', 'public', NULL, now()),
-  (gen_random_uuid(), 'Вино красное сухое',                  68, 0.2,  0.0,  0.3, 'verified', 'public', NULL, now()),
+  (gen_random_uuid(), 'Вино красное сухое',                  68, 0.2,  0.0,  0.3, 'verified', 'public', NULL, now());
