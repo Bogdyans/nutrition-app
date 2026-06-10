@@ -1,5 +1,8 @@
 {
     email your-email@example.com
+    # ZeroSSL (issuer по умолчанию у Caddy) может блокировать запросы
+    # с российских IP — используем только Let's Encrypt.
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
 }
 
 your-domain.example {
