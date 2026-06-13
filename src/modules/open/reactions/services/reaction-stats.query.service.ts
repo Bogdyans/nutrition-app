@@ -222,7 +222,7 @@ export class ReactionStatsQueryService {
     });
 
     if (!reaction) {
-      throw new NotFoundException('Reaction not found');
+      throw new NotFoundException('Реакция не найдена');
     }
 
     const [details, mealReactions] = await Promise.all([

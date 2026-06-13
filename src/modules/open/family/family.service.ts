@@ -63,7 +63,7 @@ export class FamilyService {
       });
 
       if (existing) {
-        throw new BadRequestException('User already in a group');
+        throw new BadRequestException('Пользователь уже состоит в группе');
       }
 
       const chat = await this.chatsService.createFamilyChat(tx, { name });
@@ -167,15 +167,15 @@ export class FamilyService {
     });
 
     if (!membership) {
-      throw new ForbiddenException('Not in group');
+      throw new ForbiddenException('Вы не состоите в группе');
     }
 
     if (membership.role === GroupRole.MEMBER) {
-      throw new ForbiddenException('No permission');
+      throw new ForbiddenException('Недостаточно прав');
     }
 
     if (dto.invitedUserId === userId) {
-      throw new BadRequestException('Cannot invite yourself');
+      throw new BadRequestException('Нельзя пригласить самого себя');
     }
 
     const invitedUser = await this.prisma.user.findFirst({
@@ -184,7 +184,7 @@ export class FamilyService {
     });
 
     if (!invitedUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Пользователь не найден');
     }
 
     const invitedMembership = await this.prisma.familyGroupMember.findUnique({
@@ -193,7 +193,7 @@ export class FamilyService {
     });
 
     if (invitedMembership) {
-      throw new BadRequestException('User already in a group');
+      throw new BadRequestException('Пользователь уже состоит в группе');
     }
 
     return this.prisma.familyGroupInvitation.create({
@@ -215,7 +215,7 @@ export class FamilyService {
     });
 
     if (existing) {
-      throw new BadRequestException('Already in group');
+      throw new BadRequestException('Вы уже состоите в группе');
     }
 
     const invitation = await this.prisma.familyGroupInvitation.findUnique({
@@ -231,19 +231,19 @@ export class FamilyService {
     });
 
     if (!invitation) {
-      throw new NotFoundException('Invitation not found');
+      throw new NotFoundException('Приглашение не найдено');
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new BadRequestException('Invalid invitation status');
+      throw new BadRequestException('Недействительный статус приглашения');
     }
 
     if (invitation.expiresAt < new Date()) {
-      throw new BadRequestException('Invitation expired');
+      throw new BadRequestException('Срок действия приглашения истёк');
     }
 
     if (!invitation.invitedUserId || invitation.invitedUserId !== userId) {
-      throw new ForbiddenException('Invitation is not for this user');
+      throw new ForbiddenException('Приглашение предназначено другому пользователю');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -286,7 +286,7 @@ export class FamilyService {
     });
 
     if (!membership) {
-      throw new BadRequestException('Not in group');
+      throw new BadRequestException('Вы не состоите в группе');
     }
 
     // 2. Если это OWNER, проверяем количество людей в группе
@@ -296,7 +296,7 @@ export class FamilyService {
       // Если кроме него кто-то есть — выходить нельзя, пусть передает права
       if (totalMembers > 1) {
         throw new BadRequestException(
-          'Owner must transfer ownership before leaving',
+          'Владелец должен передать права перед выходом из группы',
         );
       }
     }
@@ -356,11 +356,11 @@ export class FamilyService {
     }
 
     if (target.role === GroupRole.OWNER) {
-      throw new BadRequestException('Cannot remove owner');
+      throw new BadRequestException('Нельзя удалить владельца');
     }
 
     if (target.role === GroupRole.ADMIN && current.role !== GroupRole.OWNER) {
-      throw new ForbiddenException('Only owner can remove admin');
+      throw new ForbiddenException('Только владелец может удалить администратора');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -392,11 +392,11 @@ export class FamilyService {
     });
 
     if (!current || current.role !== GroupRole.OWNER) {
-      throw new ForbiddenException('Only owner');
+      throw new ForbiddenException('Только владелец');
     }
 
     if (dto.userId === currentUserId) {
-      throw new BadRequestException('Use transferOwnership instead');
+      throw new BadRequestException('Нельзя изменить собственную роль');
     }
 
     const target = await this.prisma.familyGroupMember.findUnique({
@@ -459,7 +459,7 @@ export class FamilyService {
     }
 
     if (newOwnerId === currentUserId) {
-      throw new BadRequestException('Already owner');
+      throw new BadRequestException('Пользователь уже является владельцем');
     }
 
     return this.prisma.$transaction(async (tx) => {

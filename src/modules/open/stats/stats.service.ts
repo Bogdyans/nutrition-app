@@ -156,7 +156,7 @@ export class StatsService {
   private parseDateOnly(value: string): Date {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (!match) {
-      throw new BadRequestException('Use date format YYYY-MM-DD');
+      throw new BadRequestException('Используйте формат даты ГГГГ-ММ-ДД');
     }
 
     const year = Number(match[1]);
@@ -166,7 +166,7 @@ export class StatsService {
     const parsed = new Date(Date.UTC(year, month - 1, day));
 
     if (parsed.toISOString().slice(0, 10) !== value) {
-      throw new BadRequestException('Invalid calendar date');
+      throw new BadRequestException('Некорректная дата');
     }
 
     return parsed;
@@ -280,13 +280,13 @@ export class StatsService {
     const end = this.endOfUtcDay(query.to);
 
     if (start > end) {
-      throw new BadRequestException('Invalid date range');
+      throw new BadRequestException('Некорректный диапазон дат');
     }
 
     const spanDays = (end.getTime() - start.getTime()) / DAY_MS;
     if (spanDays > MAX_RANGE_DAYS) {
       throw new BadRequestException(
-        `Range cannot exceed ${MAX_RANGE_DAYS} days`,
+        `Диапазон не может превышать ${MAX_RANGE_DAYS} дней`,
       );
     }
 

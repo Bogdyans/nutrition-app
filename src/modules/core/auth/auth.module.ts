@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../../closed/users/users.module';
 import { TokenService } from './token/token.service';
+import { EmailDomainVerifier } from './email/email-domain-verifier.service';
 
 @Module({
   imports: [
@@ -24,7 +25,13 @@ import { TokenService } from './token/token.service';
     UsersModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, TokenService],
+  providers: [
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    TokenService,
+    EmailDomainVerifier,
+  ],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

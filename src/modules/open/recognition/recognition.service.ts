@@ -37,11 +37,11 @@ export class MealVisionService {
     dto: RecognizeMealDto,
   ): Promise<RecognitionResult> {
     if (!file?.buffer) {
-      throw new BadRequestException('Invalid file');
+      throw new BadRequestException('Некорректный файл');
     }
 
     if (!file.mimetype.startsWith('image/')) {
-      throw new BadRequestException('Only image files are allowed');
+      throw new BadRequestException('Допускаются только изображения');
     }
 
     const base64 = file.buffer.toString('base64');
@@ -67,11 +67,13 @@ export class MealVisionService {
       parsed = parseVisionOutput(VisionParser.safeParse(rawText));
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new UnprocessableEntityException((error as Error).message);
+      throw new UnprocessableEntityException(
+        'Не удалось распознать блюдо на фотографии. Попробуйте другое фото.',
+      );
     }
 
     if (!parsed.items.length) {
-      throw new BadRequestException('No food detected');
+      throw new BadRequestException('Еда на фото не обнаружена');
     }
 
     const recognizedItems = normalizeItems(parsed.items);

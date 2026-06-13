@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 
 export class UpdateMealItemDto {
   @Type(() => Number)
-  @IsNumber()
-  @Min(1)
+  @IsNumber({}, { message: 'Масса порции должна быть числом' })
+  @Min(1, { message: 'Масса порции должна быть не меньше 1 грамма' })
   weightG: number;
 }

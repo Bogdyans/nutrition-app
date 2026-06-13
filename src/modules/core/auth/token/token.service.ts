@@ -53,7 +53,7 @@ export class TokenService {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException('Недействительный или просроченный токен');
     }
   }
 

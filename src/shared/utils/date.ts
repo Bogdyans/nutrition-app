@@ -4,7 +4,7 @@ export function normalizeDate(input: string): Date {
   const date = new Date(input);
 
   if (isNaN(date.getTime())) {
-    throw new BadRequestException('Invalid date format');
+    throw new BadRequestException('Некорректный формат даты');
   }
 
   // Обнуляем время ВСЕГДА

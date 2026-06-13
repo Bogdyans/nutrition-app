@@ -74,7 +74,7 @@ export class ReactionsCRUDService {
 
     if (reaction.mealReactions.length > 0) {
       throw new BadRequestException(
-        'Reaction is already used in meals and cannot be deleted',
+        'Реакция уже используется в приёмах пищи и не может быть удалена',
       );
     }
 

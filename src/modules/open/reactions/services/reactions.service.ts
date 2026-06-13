@@ -29,7 +29,7 @@ export class ReactionsService {
     `;
 
     if (rows.length === 0) {
-      throw new NotFoundException('Meal not found');
+      throw new NotFoundException('Приём пищи не найден');
     }
   }
 
@@ -46,18 +46,18 @@ export class ReactionsService {
       });
 
       if (!meal) {
-        throw new NotFoundException('Meal not found');
+        throw new NotFoundException('Приём пищи не найден');
       }
 
       if (!meal.items.length) {
-        throw new BadRequestException('Meal has no products');
+        throw new BadRequestException('В приёме пищи нет продуктов');
       }
 
       const dtoReactionIds = dto.reactions.map((r) => r.reactionId);
       const uniqueDtoReactionIds = new Set(dtoReactionIds);
 
       if (uniqueDtoReactionIds.size !== dtoReactionIds.length) {
-        throw new BadRequestException('Duplicate reactions');
+        throw new BadRequestException('Повторяющиеся реакции');
       }
 
       const alreadyAddedReactionIds = new Set(
@@ -69,7 +69,7 @@ export class ReactionsService {
           alreadyAddedReactionIds.has(reaction.reactionId),
         )
       ) {
-        throw new BadRequestException('Reaction already added to meal');
+        throw new BadRequestException('Реакция уже добавлена к приёму пищи');
       }
 
       const reactions = await tx.reaction.findMany({
@@ -80,7 +80,7 @@ export class ReactionsService {
       });
 
       if (reactions.length !== dtoReactionIds.length) {
-        throw new BadRequestException('Invalid reactions');
+        throw new BadRequestException('Некорректные реакции');
       }
 
       const productIds = [...new Set(meal.items.map((i) => i.productId))];
@@ -135,7 +135,7 @@ export class ReactionsService {
       });
 
       if (!mealReaction) {
-        throw new NotFoundException('Meal reaction not found');
+        throw new NotFoundException('Реакция для приёма пищи не найдена');
       }
 
       await this.lockMealOrThrow(tx, userId, mealReaction.mealId);

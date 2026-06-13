@@ -12,7 +12,7 @@ export class ProductsService {
     const visibility = dto.visibility ?? ProductVisibility.PRIVATE;
 
     if (visibility === ProductVisibility.PUBLIC) {
-      throw new BadRequestException('Users cannot create PUBLIC products');
+      throw new BadRequestException('Нельзя создавать публичные продукты');
     }
 
     const name = dto.name.trim();
@@ -114,15 +114,15 @@ export class ProductsService {
     });
 
     if (!product) {
-      throw new BadRequestException('Product not found');
+      throw new BadRequestException('Продукт не найден');
     }
 
     if (product.ownerId !== userId) {
-      throw new BadRequestException('No access to this product');
+      throw new BadRequestException('Нет доступа к этому продукту');
     }
 
     if (visibility === ProductVisibility.PUBLIC) {
-      throw new BadRequestException('Cannot set PUBLIC visibility');
+      throw new BadRequestException('Нельзя установить публичную видимость');
     }
 
     return this.prisma.product.update({
@@ -140,11 +140,11 @@ export class ProductsService {
     });
 
     if (!product) {
-      throw new BadRequestException('Product not found');
+      throw new BadRequestException('Продукт не найден');
     }
 
     if (product.ownerId !== userId) {
-      throw new BadRequestException('No access to this product');
+      throw new BadRequestException('Нет доступа к этому продукту');
     }
 
     return this.prisma.product.update({

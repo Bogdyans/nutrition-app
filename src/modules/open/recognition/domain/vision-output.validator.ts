@@ -15,7 +15,7 @@ export interface ParsedVisionOutput {
 export function parseVisionOutput(value: unknown): ParsedVisionOutput {
   if (!isRecord(value) || !Array.isArray(value.items)) {
     throw new UnprocessableEntityException(
-      'Recognition model returned an unexpected response',
+      'Сервис распознавания вернул неожиданный ответ',
     );
   }
 
@@ -23,7 +23,7 @@ export function parseVisionOutput(value: unknown): ParsedVisionOutput {
 
   if (value.notes !== undefined && !isStringArray(value.notes)) {
     throw new UnprocessableEntityException(
-      'Recognition model returned invalid notes',
+      'Сервис распознавания вернул некорректные данные',
     );
   }
 
@@ -39,7 +39,7 @@ function parseItem(value: unknown): RecognizedFoodItem {
     !isFiniteNumber(value.confidence)
   ) {
     throw new UnprocessableEntityException(
-      'Recognition model returned an invalid item',
+      'Сервис распознавания вернул некорректную позицию',
     );
   }
 

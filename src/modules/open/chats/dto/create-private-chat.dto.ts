@@ -1,6 +1,6 @@
 import { IsUUID } from 'class-validator';
 
 export class CreatePrivateChatDto {
-  @IsUUID()
+  @IsUUID(undefined, { message: 'Некорректный идентификатор пользователя' })
   targetUserId: string;
 }

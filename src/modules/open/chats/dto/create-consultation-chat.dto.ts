@@ -1,6 +1,6 @@
 import { IsUUID } from 'class-validator';
 
 export class CreateConsultationChatDto {
-  @IsUUID()
+  @IsUUID(undefined, { message: 'Некорректный идентификатор консультанта' })
   consultantId: string;
 }

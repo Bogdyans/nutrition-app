@@ -12,27 +12,27 @@ import {
 export class GetMealsDto {
   @ValidateIf((o: GetMealsDto) => !o.from && !o.to)
   @IsOptional()
-  @IsDateString()
+  @IsDateString({}, { message: 'Некорректная дата' })
   date?: string;
 
   @ValidateIf((o: GetMealsDto) => !o.date)
   @IsOptional()
-  @IsDateString()
+  @IsDateString({}, { message: 'Некорректная начальная дата' })
   from?: string;
 
   @ValidateIf((o: GetMealsDto) => !o.date)
   @IsOptional()
-  @IsDateString()
+  @IsDateString({}, { message: 'Некорректная конечная дата' })
   to?: string;
 
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'Курсор должен быть строкой' })
   cursor?: string;
 
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(20)
+  @IsInt({ message: 'Лимит должен быть целым числом' })
+  @Min(1, { message: 'Лимит должен быть не меньше 1' })
+  @Max(20, { message: 'Лимит должен быть не больше 20' })
   limit?: number;
 }

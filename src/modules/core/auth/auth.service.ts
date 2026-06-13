@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -10,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { User, UserRole } from '@prisma/client';
 import { UsersService } from '../../closed/users/users.service';
 import { TokenService } from './token/token.service';
+import { EmailDomainVerifier } from './email/email-domain-verifier.service';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +19,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly tokenService: TokenService,
     private readonly prisma: PrismaService,
+    private readonly emailVerifier: EmailDomainVerifier,
   ) {}
 
   private toSessionUser(
@@ -31,7 +34,15 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const exists = await this.usersService.findByEmail(dto.email);
-    if (exists) throw new ConflictException('Email already in use');
+    if (exists) throw new ConflictException('Эта почта уже используется');
+
+    // Reject non-existent domains / typos before doing any expensive work.
+    const deliverable = await this.emailVerifier.isDeliverable(dto.email);
+    if (!deliverable) {
+      throw new BadRequestException(
+        'Похоже, такого адреса электронной почты не существует. Проверьте правильность написания.',
+      );
+    }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = await this.usersService.createUser({
@@ -48,10 +59,10 @@ export class AuthService {
 
   async validateLocalUser(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('Неверный логин или пароль');
 
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException('Invalid credentials');
+    if (!ok) throw new UnauthorizedException('Неверный логин или пароль');
 
     return this.toSessionUser(user);
   }
@@ -69,13 +80,13 @@ export class AuthService {
       where: { id: payload.jti, revokedAt: null },
     });
 
-    if (!tokenRecord) throw new UnauthorizedException('Invalid token');
+    if (!tokenRecord) throw new UnauthorizedException('Недействительный токен');
 
     const isMatch = await bcrypt.compare(refreshToken, tokenRecord.tokenHash);
-    if (!isMatch) throw new UnauthorizedException('Invalid token');
+    if (!isMatch) throw new UnauthorizedException('Недействительный токен');
 
     const user = await this.usersService.findById(payload.id);
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw new UnauthorizedException('Пользователь не найден');
 
     return this.prisma.$transaction(async (tx) => {
       await tx.refreshToken.update({
@@ -94,15 +105,15 @@ export class AuthService {
     });
 
     if (!tokenRecord) {
-      throw new UnauthorizedException('Token already revoked or invalid');
+      throw new UnauthorizedException('Токен уже отозван или недействителен');
     }
 
     const isMatch = await bcrypt.compare(refreshToken, tokenRecord.tokenHash);
     if (isMatch) {
       await this.tokenService.revokeToken(tokenRecord.id);
-      return { message: 'Logged out successfully' };
+      return { message: 'Вы успешно вышли из системы' };
     }
 
-    throw new UnauthorizedException('Invalid token');
+    throw new UnauthorizedException('Недействительный токен');
   }
 }

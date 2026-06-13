@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsUUID } from 'class-validator';
 
 export class InviteDto {
-  @IsUUID()
-  @IsNotEmpty()
+  @IsUUID(undefined, { message: 'Некорректный идентификатор пользователя' })
+  @IsNotEmpty({ message: 'Укажите пользователя' })
   invitedUserId: string;
 }

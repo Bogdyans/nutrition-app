@@ -74,7 +74,7 @@ export class MealsService {
 
   private resolveRange(query: GetMealsDto, timezoneOffsetMinutes: number) {
     if (query.date && (query.from || query.to)) {
-      throw new BadRequestException('Use either date or from/to');
+      throw new BadRequestException('Укажите либо конкретную дату, либо диапазон дат');
     }
 
     if (query.date) {
@@ -94,7 +94,7 @@ export class MealsService {
         : new Date();
 
       if (start > end) {
-        throw new BadRequestException('Invalid date range');
+        throw new BadRequestException('Некорректный диапазон дат');
       }
 
       return { start, end };
@@ -130,7 +130,7 @@ export class MealsService {
     `;
 
     if (rows.length === 0) {
-      throw new NotFoundException('Meal not found');
+      throw new NotFoundException('Приём пищи не найден');
     }
   }
 
@@ -153,7 +153,7 @@ export class MealsService {
     });
 
     if (!product) {
-      throw new BadRequestException(`Product ${productId} is unavailable`);
+      throw new BadRequestException(`Продукт ${productId} недоступен`);
     }
 
     return product;
@@ -179,7 +179,7 @@ export class MealsService {
     });
 
     if (!meal) {
-      throw new NotFoundException('Meal not found');
+      throw new NotFoundException('Приём пищи не найден');
     }
 
     return meal;
@@ -214,7 +214,7 @@ export class MealsService {
     });
 
     if (!meal) {
-      throw new NotFoundException('Meal not found');
+      throw new NotFoundException('Приём пищи не найден');
     }
 
     return meal;
@@ -288,7 +288,7 @@ export class MealsService {
         });
 
         if (accessibleProducts.length !== uniqueProductIds.length) {
-          throw new BadRequestException('One or more products are unavailable');
+          throw new BadRequestException('Один или несколько продуктов недоступны');
         }
 
         await tx.mealItem.createMany({
@@ -439,7 +439,7 @@ export class MealsService {
       });
 
       if (!item) {
-        throw new NotFoundException('Meal item not found');
+        throw new NotFoundException('Позиция приёма пищи не найдена');
       }
 
       const sameProductCount = meal.items.filter(
@@ -532,7 +532,7 @@ export class MealsService {
       });
 
       if (!item) {
-        throw new NotFoundException('Meal item not found');
+        throw new NotFoundException('Позиция приёма пищи не найдена');
       }
 
       await tx.mealItem.update({
