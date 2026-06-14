@@ -1,4 +1,11 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import {
+  Equals,
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Некорректный адрес электронной почты' })
@@ -15,4 +22,10 @@ export class RegisterDto {
     message: 'Имя пользователя должно содержать минимум 5 символов',
   })
   username: string;
+
+  @IsBoolean({ message: 'Некорректное значение согласия' })
+  @Equals(true, {
+    message: 'Необходимо принять политику конфиденциальности',
+  })
+  acceptedPrivacy: boolean;
 }

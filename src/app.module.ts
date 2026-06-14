@@ -17,6 +17,7 @@ import { RecommendationsModule } from './modules/open/recommendations/recommenda
 import { FamilyModule } from './modules/open/family/family.module';
 import { MealVisionModule } from './modules/open/recognition/recognition.module';
 import { OpenUsersModule } from './modules/open/users/open-users.module';
+import { LegalModule } from './modules/open/legal/legal.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { OpenUsersModule } from './modules/open/users/open-users.module';
     FamilyModule,
     MealVisionModule,
     OpenUsersModule,
+    LegalModule,
   ],
 })
 export class AppModule {}

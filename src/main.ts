@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
@@ -17,7 +17,11 @@ async function bootstrap() {
   // relies on an inline bootstrap script that the default policy blocks.
   app.use(helmet({ contentSecurityPolicy: isProduction ? undefined : false }));
 
-  app.setGlobalPrefix('api');
+  // Everything lives under /api, except the public privacy policy page which
+  // must be reachable at the bare https://<domain>/privacy URL (app + stores).
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: 'privacy', method: RequestMethod.GET }],
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
