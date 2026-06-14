@@ -144,6 +144,20 @@ model RefreshToken {
   @@map("refresh-tokens")
 }
 
+model EmailVerificationCode {
+  id        String   @id @default(uuid())
+  codeHash  String   @map("code_hash")
+  expiresAt DateTime @map("expires_at")
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email-verification-codes")
+}
+
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
@@ -156,6 +170,7 @@ model User {
   activityLevel ActivityLevel @default(MODERATE) @map("activity_level")
   createdAt     DateTime      @default(now()) @map("created_at")
   deletedAt     DateTime?
+  emailVerified Boolean       @default(false) @map("email_verified")
 
   // Отношения
   userRoles                     UserRole[]
@@ -168,6 +183,7 @@ model User {
   achievements                  Achievement[]
   weightHistory                 WeightHistory[]
   refreshToken                  RefreshToken[]
+  emailVerificationCodes        EmailVerificationCode[]
   products                      Product[]
   productStats                  ProductReactionStat[]
   productDetails                ProductReactionDetail[]

@@ -13,6 +13,8 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendCodeDto } from './dto/resend-code.dto';
 import type { RequestWithUser, SessionUserDataFromJwt } from './types';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { UsersService } from '../../closed/users/users.service';
@@ -45,6 +47,18 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
     return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('verify-email')
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('resend-code')
+  resendCode(@Body() dto: ResendCodeDto) {
+    return this.authService.resendCode(dto.email);
   }
 
   @Post('logout')

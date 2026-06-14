@@ -10,6 +10,8 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../../closed/users/users.module';
 import { TokenService } from './token/token.service';
 import { EmailDomainVerifier } from './email/email-domain-verifier.service';
+import { EmailConfirmationService } from './email/email-confirmation.service';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { EmailDomainVerifier } from './email/email-domain-verifier.service';
     }),
     PrismaModule,
     UsersModule,
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [
@@ -31,6 +34,7 @@ import { EmailDomainVerifier } from './email/email-domain-verifier.service';
     JwtStrategy,
     TokenService,
     EmailDomainVerifier,
+    EmailConfirmationService,
   ],
   exports: [AuthService, JwtModule],
 })

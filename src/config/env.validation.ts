@@ -37,6 +37,14 @@ export const envValidationSchema = Joi.object({
     .uri({ scheme: ['https'] })
     .required(),
   VISION_OPENROUTER_MODEL: Joi.string().required(),
+
+  // SMTP (email confirmation). Optional: without it the verification code is
+  // logged to the console instead of being emailed (dev fallback).
+  SMTP_HOST: Joi.string().optional(),
+  SMTP_PORT: Joi.number().port().default(465),
+  SMTP_USER: Joi.string().optional(),
+  SMTP_PASS: Joi.string().optional(),
+  SMTP_FROM: Joi.string().optional(),
 });
 
 /** Show every config problem at once; ignore unrelated OS env vars. */
