@@ -15,5 +15,6 @@ import { ReactionStatsQueryService } from './services/reaction-stats.query.servi
     ReactionStatsDomainService,
     ReactionStatsQueryService,
   ],
+  exports: [ReactionStatsQueryService],
 })
 export class ReactionsModule {}

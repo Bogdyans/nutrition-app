@@ -156,6 +156,30 @@ export class FamilyService {
     };
   }
 
+  /**
+   * Ensures the requester may view the target user's data: either it is their
+   * own data, or both users belong to the same family group. Used to gate
+   * read access to a member's stats and meals.
+   */
+  async assertCanViewMember(requesterId: string, targetUserId: string) {
+    if (requesterId === targetUserId) return;
+
+    const [me, target] = await Promise.all([
+      this.prisma.familyGroupMember.findUnique({
+        where: { userId: requesterId },
+        select: { groupId: true },
+      }),
+      this.prisma.familyGroupMember.findUnique({
+        where: { userId: targetUserId },
+        select: { groupId: true },
+      }),
+    ]);
+
+    if (!me || !target || me.groupId !== target.groupId) {
+      throw new ForbiddenException('Нет доступа к данным этого пользователя');
+    }
+  }
+
   async createInvitation(userId: string, dto: InviteDto) {
     const membership = await this.prisma.familyGroupMember.findUnique({
       where: { userId },
