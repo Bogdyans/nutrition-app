@@ -36,9 +36,9 @@ export class MailService implements OnModuleInit {
         port,
         secure: port === 465, // SSL for 465, STARTTLS for 587
         auth: { user, pass },
-        // Force IPv4: Docker bridge networks usually have no IPv6 route, so
-        // resolving Gmail to an AAAA address first causes a CONN timeout.
-        family: 4,
+        // IPv4 is forced via NODE_OPTIONS=--dns-result-order=ipv4first (see
+        // docker-compose): Docker bridge networks usually have no IPv6 route,
+        // and an AAAA address would otherwise cause a CONN timeout.
         connectionTimeout: 15_000,
       });
     } else {
