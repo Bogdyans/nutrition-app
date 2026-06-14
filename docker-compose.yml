@@ -7,10 +7,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      # Docker bridge has no IPv6 route — prefer IPv4 for all DNS lookups,
-      # otherwise SMTP to Gmail hangs trying an IPv6 (AAAA) address.
-      - NODE_OPTIONS=--dns-result-order=ipv4first
     expose:
       - "3001"
     depends_on:

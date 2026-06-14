@@ -38,13 +38,12 @@ export const envValidationSchema = Joi.object({
     .required(),
   VISION_OPENROUTER_MODEL: Joi.string().required(),
 
-  // SMTP (email confirmation). Optional: without it the verification code is
-  // logged to the console instead of being emailed (dev fallback).
-  SMTP_HOST: Joi.string().optional(),
-  SMTP_PORT: Joi.number().port().default(465),
-  SMTP_USER: Joi.string().optional(),
-  SMTP_PASS: Joi.string().optional(),
-  SMTP_FROM: Joi.string().optional(),
+  // Email confirmation via an HTTP email API (HTTPS:443). Set one of
+  // RESEND_API_KEY / BREVO_API_KEY; without either, codes are logged (dev).
+  RESEND_API_KEY: Joi.string().optional(),
+  BREVO_API_KEY: Joi.string().optional(),
+  MAIL_FROM_EMAIL: Joi.string().optional(),
+  MAIL_FROM_NAME: Joi.string().optional(),
 });
 
 /** Show every config problem at once; ignore unrelated OS env vars. */

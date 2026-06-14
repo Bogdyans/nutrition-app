@@ -1,65 +1,41 @@
 import {
   Injectable,
   Logger,
-  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+
+const RESEND_ENDPOINT = 'https://api.resend.com/emails';
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 /**
- * Thin wrapper around an SMTP transport (Nodemailer).
+ * Sends email via a transactional HTTP API (HTTPS:443) — Resend or Brevo,
+ * whichever key is configured.
  *
- * When SMTP is not configured (no SMTP_HOST/USER/PASS) the service falls back
- * to logging the message instead of sending it — so the verification flow can
- * be exercised end-to-end in development without real credentials.
+ * An HTTP API is used instead of SMTP because the host blocks outbound SMTP
+ * ports (25/465/587), a common cloud restriction, while HTTPS is open.
+ *
+ * With neither key set the code is logged instead of sent (dev fallback).
  */
 @Injectable()
-export class MailService implements OnModuleInit {
+export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly transporter: Transporter | null;
-  private readonly from: string;
+  private readonly resendKey?: string;
+  private readonly brevoKey?: string;
+  private readonly fromEmail: string;
+  private readonly fromName: string;
 
   constructor(private readonly config: ConfigService) {
-    const host = this.config.get<string>('SMTP_HOST');
-    const user = this.config.get<string>('SMTP_USER');
-    const pass = this.config.get<string>('SMTP_PASS');
-    const port = Number(this.config.get('SMTP_PORT')) || 465;
+    this.resendKey = this.config.get<string>('RESEND_API_KEY');
+    this.brevoKey = this.config.get<string>('BREVO_API_KEY');
+    this.fromEmail =
+      this.config.get<string>('MAIL_FROM_EMAIL') ?? 'no-reply@perekusov-net.ru';
+    this.fromName =
+      this.config.get<string>('MAIL_FROM_NAME') ?? 'Дневник Питания';
 
-    this.from =
-      this.config.get<string>('SMTP_FROM') ?? user ?? 'no-reply@perekusov.net';
-
-    if (host && user && pass) {
-      this.transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465, // SSL for 465, STARTTLS for 587
-        auth: { user, pass },
-        // IPv4 is forced via NODE_OPTIONS=--dns-result-order=ipv4first (see
-        // docker-compose): Docker bridge networks usually have no IPv6 route,
-        // and an AAAA address would otherwise cause a CONN timeout.
-        connectionTimeout: 15_000,
-      });
-    } else {
-      this.transporter = null;
+    if (!this.resendKey && !this.brevoKey) {
       this.logger.warn(
-        'SMTP не настроен — письма выводятся в лог (режим разработки).',
-      );
-    }
-  }
-
-  /** Checks SMTP credentials at startup so misconfiguration is obvious early. */
-  async onModuleInit(): Promise<void> {
-    if (!this.transporter) return;
-
-    try {
-      await this.transporter.verify();
-      this.logger.log('SMTP-подключение установлено — отправка писем готова.');
-    } catch (error) {
-      this.logger.error(
-        'Не удалось подключиться к SMTP — проверьте переменные SMTP_* в .env.',
-        error as Error,
+        'RESEND_API_KEY/BREVO_API_KEY не заданы — письма выводятся в лог (режим разработки).',
       );
     }
   }
@@ -72,15 +48,61 @@ export class MailService implements OnModuleInit {
       'Код действителен 15 минут.\n\n' +
       'Если вы не регистрировались, просто проигнорируйте это письмо.';
 
-    if (!this.transporter) {
-      this.logger.warn(`[DEV] Код подтверждения для ${to}: ${code}`);
-      return;
+    if (this.resendKey) {
+      return this.send(
+        RESEND_ENDPOINT,
+        { Authorization: `Bearer ${this.resendKey}` },
+        {
+          from: `${this.fromName} <${this.fromEmail}>`,
+          to: [to],
+          subject,
+          text,
+        },
+      );
     }
 
+    if (this.brevoKey) {
+      return this.send(
+        BREVO_ENDPOINT,
+        { 'api-key': this.brevoKey },
+        {
+          sender: { name: this.fromName, email: this.fromEmail },
+          to: [{ email: to }],
+          subject,
+          textContent: text,
+        },
+      );
+    }
+
+    this.logger.warn(`[DEV] Код подтверждения для ${to}: ${code}`);
+  }
+
+  private async send(
+    url: string,
+    authHeaders: Record<string, string>,
+    body: unknown,
+  ): Promise<void> {
     try {
-      await this.transporter.sendMail({ from: this.from, to, subject, text });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        this.logger.error(`Email API ${url} → ${response.status}: ${detail}`);
+        throw new ServiceUnavailableException(
+          'Не удалось отправить письмо с кодом. Попробуйте позже.',
+        );
+      }
     } catch (error) {
-      this.logger.error(`Не удалось отправить письмо на ${to}`, error as Error);
+      if (error instanceof ServiceUnavailableException) throw error;
+      this.logger.error('Сбой при отправке письма', error as Error);
       throw new ServiceUnavailableException(
         'Не удалось отправить письмо с кодом. Попробуйте позже.',
       );
