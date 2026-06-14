@@ -36,6 +36,10 @@ export class MailService implements OnModuleInit {
         port,
         secure: port === 465, // SSL for 465, STARTTLS for 587
         auth: { user, pass },
+        // Force IPv4: Docker bridge networks usually have no IPv6 route, so
+        // resolving Gmail to an AAAA address first causes a CONN timeout.
+        family: 4,
+        connectionTimeout: 15_000,
       });
     } else {
       this.transporter = null;
