@@ -58,7 +58,9 @@ export class ChatsGateway
      * payload to `socket.user`. On failure the connection is rejected.
      */
     server.use((socket: AuthSocket, next) => {
-      const token: string | undefined = socket.handshake.auth?.token;
+      // handshake.auth типизирован как `any`, поэтому сужаем явно.
+      const rawToken: unknown = socket.handshake.auth?.token;
+      const token = typeof rawToken === 'string' ? rawToken : undefined;
 
       if (!token) {
         return next(new Error('Unauthorized: no token'));
@@ -148,7 +150,7 @@ export class ChatsGateway
 
     const target =
       excludeSocketIds.length > 0
-        ? (this.server.to(chatId) as any).except(excludeSocketIds)
+        ? this.server.to(chatId).except(excludeSocketIds)
         : this.server.to(chatId);
 
     target.emit(event, data);

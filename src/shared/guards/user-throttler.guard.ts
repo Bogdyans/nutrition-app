@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import type { Request } from 'express';
+import type { SessionUserDataFromJwt } from '../../modules/core/auth/types';
+
+type TrackedRequest = Partial<Request> & {
+  user?: SessionUserDataFromJwt;
+};
 
 /**
  * Rate-limits by authenticated user id instead of IP, so the budget is
@@ -9,7 +15,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
  */
 @Injectable()
 export class UserThrottlerGuard extends ThrottlerGuard {
-  protected getTracker(req: Record<string, any>): Promise<string> {
-    return Promise.resolve(req.user?.id ?? req.ip);
+  protected getTracker(req: TrackedRequest): Promise<string> {
+    return Promise.resolve(req.user?.id ?? req.ip ?? 'unknown');
   }
 }
