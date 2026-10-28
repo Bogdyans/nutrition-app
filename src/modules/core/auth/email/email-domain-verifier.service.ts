@@ -46,7 +46,10 @@ export class EmailDomainVerifier {
     const at = email.lastIndexOf('@');
     if (at === -1) return null;
 
-    const domain = email.slice(at + 1).trim().toLowerCase();
+    const domain = email
+      .slice(at + 1)
+      .trim()
+      .toLowerCase();
     return domain.length > 0 ? domain : null;
   }
 

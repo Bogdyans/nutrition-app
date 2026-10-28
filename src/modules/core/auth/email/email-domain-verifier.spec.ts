@@ -11,8 +11,7 @@ import { EmailDomainVerifier } from './email-domain-verifier.service';
 const resolveMx = dns.resolveMx as jest.Mock;
 const lookup = dns.lookup as jest.Mock;
 
-const dnsError = (code: string) =>
-  Object.assign(new Error(code), { code });
+const dnsError = (code: string) => Object.assign(new Error(code), { code });
 
 describe('EmailDomainVerifier', () => {
   let verifier: EmailDomainVerifier;
@@ -25,7 +24,9 @@ describe('EmailDomainVerifier', () => {
   it('accepts an address whose domain advertises MX records', async () => {
     resolveMx.mockResolvedValue([{ exchange: 'mx.example.com', priority: 10 }]);
 
-    await expect(verifier.isDeliverable('user@example.com')).resolves.toBe(true);
+    await expect(verifier.isDeliverable('user@example.com')).resolves.toBe(
+      true,
+    );
     expect(resolveMx).toHaveBeenCalledWith('example.com');
     expect(lookup).not.toHaveBeenCalled();
   });

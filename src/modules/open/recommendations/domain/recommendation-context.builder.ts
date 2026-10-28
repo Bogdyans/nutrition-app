@@ -27,63 +27,63 @@ export class RecommendationContextBuilder {
 
     const [user, recentMeals, reactions, reactionDetails, weightHistory] =
       await Promise.all([
-      this.prisma.user.findFirst({
-        where: { id: userId, deletedAt: null },
-        select: {
-          gender: true,
-          birthDate: true,
-          heightCm: true,
-          currentWeight: true,
-          activityLevel: true,
-        },
-      }),
-      this.prisma.meal.findMany({
-        where: { userId },
-        orderBy: { timestamp: 'desc' },
-        take: 3,
-        select: {
-          timestamp: true,
-          items: {
-            select: {
-              weightG: true,
-              product: {
-                select: {
-                  name: true,
-                  calories: true,
-                  proteins: true,
-                  fats: true,
-                  carbs: true,
+        this.prisma.user.findFirst({
+          where: { id: userId, deletedAt: null },
+          select: {
+            gender: true,
+            birthDate: true,
+            heightCm: true,
+            currentWeight: true,
+            activityLevel: true,
+          },
+        }),
+        this.prisma.meal.findMany({
+          where: { userId },
+          orderBy: { timestamp: 'desc' },
+          take: 3,
+          select: {
+            timestamp: true,
+            items: {
+              select: {
+                weightG: true,
+                product: {
+                  select: {
+                    name: true,
+                    calories: true,
+                    proteins: true,
+                    fats: true,
+                    carbs: true,
+                  },
                 },
               },
             },
           },
-        },
-      }),
-      this.prisma.reaction.findMany({
-        where: { userId },
-        select: { id: true, name: true },
-      }),
-      this.prisma.productReactionDetail.findMany({
-        where: { userId },
-        select: {
-          reactionId: true,
-          count: true,
-        },
-      }),
-      this.prisma.weightHistory.findMany({
-        where: {
-          userId,
-          measuredAt: {
-            gte: sevenDaysAgo,
+        }),
+        this.prisma.reaction.findMany({
+          where: { userId },
+          select: { id: true, name: true },
+        }),
+        this.prisma.productReactionDetail.findMany({
+          where: { userId },
+          select: {
+            reactionId: true,
+            count: true,
           },
-        },
-        orderBy: { measuredAt: 'asc' },
-        select: {
-          measuredAt: true,
-          weightInKg: true,
-        },
-      }),
-    ]);
+        }),
+        this.prisma.weightHistory.findMany({
+          where: {
+            userId,
+            measuredAt: {
+              gte: sevenDaysAgo,
+            },
+          },
+          orderBy: { measuredAt: 'asc' },
+          select: {
+            measuredAt: true,
+            weightInKg: true,
+          },
+        }),
+      ]);
 
     if (!user) {
       throw new BadRequestException('Пользователь не найден');

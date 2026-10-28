@@ -267,7 +267,9 @@ export class FamilyService {
     }
 
     if (!invitation.invitedUserId || invitation.invitedUserId !== userId) {
-      throw new ForbiddenException('Приглашение предназначено другому пользователю');
+      throw new ForbiddenException(
+        'Приглашение предназначено другому пользователю',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -384,7 +386,9 @@ export class FamilyService {
     }
 
     if (target.role === GroupRole.ADMIN && current.role !== GroupRole.OWNER) {
-      throw new ForbiddenException('Только владелец может удалить администратора');
+      throw new ForbiddenException(
+        'Только владелец может удалить администратора',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

@@ -96,12 +96,16 @@ export class EmailConfirmationService {
 
     if (record.expiresAt < new Date()) {
       await this.clearCodes(user.id);
-      throw new BadRequestException('Срок действия кода истёк. Запросите новый.');
+      throw new BadRequestException(
+        'Срок действия кода истёк. Запросите новый.',
+      );
     }
 
     if (record.attempts >= MAX_ATTEMPTS) {
       await this.clearCodes(user.id);
-      throw new BadRequestException('Слишком много попыток. Запросите новый код.');
+      throw new BadRequestException(
+        'Слишком много попыток. Запросите новый код.',
+      );
     }
 
     const matches = await bcrypt.compare(code, record.codeHash);
@@ -118,7 +122,9 @@ export class EmailConfirmationService {
         where: { id: user.id },
         data: { emailVerified: true },
       }),
-      this.prisma.emailVerificationCode.deleteMany({ where: { userId: user.id } }),
+      this.prisma.emailVerificationCode.deleteMany({
+        where: { userId: user.id },
+      }),
     ]);
 
     return user.id;

@@ -14,7 +14,9 @@ export class SearchMessagesDto {
   @IsString({ message: 'Поисковый запрос должен быть строкой' })
   @IsNotEmpty({ message: 'Введите поисковый запрос' })
   @MinLength(1, { message: 'Введите поисковый запрос' })
-  @MaxLength(100, { message: 'Поисковый запрос не должен превышать 100 символов' })
+  @MaxLength(100, {
+    message: 'Поисковый запрос не должен превышать 100 символов',
+  })
   q: string;
 
   @IsOptional()

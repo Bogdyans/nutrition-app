@@ -53,7 +53,9 @@ export class TokenService {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
-      throw new UnauthorizedException('Недействительный или просроченный токен');
+      throw new UnauthorizedException(
+        'Недействительный или просроченный токен',
+      );
     }
   }
 
