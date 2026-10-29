@@ -23,7 +23,10 @@ describe('matchProducts', () => {
     const partial = product('p1', 'Яйцо куриное жареное');
     const exact = product('p2', 'Жареное яйцо');
 
-    const result = matchProducts([recognized('Жареное яйцо')], [partial, exact]);
+    const result = matchProducts(
+      [recognized('Жареное яйцо')],
+      [partial, exact],
+    );
 
     expect(result.items[0].matches[0]).toBe(exact);
   });

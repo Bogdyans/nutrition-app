@@ -37,7 +37,11 @@ describe('MealVisionService', () => {
     mimetype: 'image/jpeg',
   } as Express.Multer.File;
 
-  const product = (id: string, name: string) =>
+  type MatchableProduct = Awaited<
+    ReturnType<ProductsService['findAvailableMatchingTerms']>
+  >[number];
+
+  const product = (id: string, name: string): MatchableProduct =>
     ({
       id,
       name,
@@ -45,7 +49,7 @@ describe('MealVisionService', () => {
       proteins: 1,
       fats: 0,
       carbs: 23,
-    }) as any;
+    }) as MatchableProduct;
 
   it('groups a recognized food with its matching products', async () => {
     mockVisionClient.recognize.mockResolvedValue(
@@ -97,9 +101,9 @@ describe('MealVisionService', () => {
   });
 
   it('should throw if file is missing', async () => {
-    await expect(service.recognize('user-1', null as any, {})).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(
+      service.recognize('user-1', null as unknown as Express.Multer.File, {}),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('should reject non-image file', async () => {
@@ -109,7 +113,7 @@ describe('MealVisionService', () => {
     } as Express.Multer.File;
 
     await expect(service.recognize('user-1', file, {})).rejects.toThrow(
-      'Only image files are allowed',
+      'Допускаются только изображения',
     );
   });
 
@@ -117,7 +121,7 @@ describe('MealVisionService', () => {
     mockVisionClient.recognize.mockResolvedValue(JSON.stringify({ items: [] }));
 
     await expect(service.recognize('user-1', validFile, {})).rejects.toThrow(
-      'No food detected',
+      'Еда на фото не обнаружена',
     );
   });
 
@@ -125,7 +129,7 @@ describe('MealVisionService', () => {
     mockVisionClient.recognize.mockResolvedValue('invalid json');
 
     await expect(service.recognize('user-1', validFile, {})).rejects.toThrow(
-      'Invalid JSON from model',
+      'Не удалось распознать блюдо на фотографии',
     );
   });
 });

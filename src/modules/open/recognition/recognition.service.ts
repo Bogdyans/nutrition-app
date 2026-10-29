@@ -14,10 +14,7 @@ import {
   parseVisionOutput,
   ParsedVisionOutput,
 } from './domain/vision-output.validator';
-import {
-  collectSearchTerms,
-  matchProducts,
-} from './domain/product-matcher';
+import { collectSearchTerms, matchProducts } from './domain/product-matcher';
 import { RecognitionResult } from './domain/types';
 import { RecognizeMealDto } from './dto/recognize.dto';
 import { ProductsService } from '../products/products.service';

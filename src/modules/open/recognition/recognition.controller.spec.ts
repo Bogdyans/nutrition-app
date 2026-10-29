@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MealVisionController } from './recognition.controller';
 import { MealVisionService } from './recognition.service';
 import { UserThrottlerGuard } from '../../../shared/guards/user-throttler.guard';
+import type { SessionUserDataFromJwt } from '../../core/auth/types';
 
 describe('MealVisionController', () => {
   let controller: MealVisionController;
@@ -39,7 +40,11 @@ describe('MealVisionController', () => {
       mimetype: 'image/jpeg',
     } as Express.Multer.File;
 
-    const user = { id: 'user-1' } as any;
+    const user: SessionUserDataFromJwt = {
+      id: 'user-1',
+      email: 'user@example.com',
+      roles: [],
+    };
 
     await controller.recognize(user, file, { hint: 'salad' });
 

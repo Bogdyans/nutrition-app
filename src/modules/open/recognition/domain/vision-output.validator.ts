@@ -27,7 +27,7 @@ export function parseVisionOutput(value: unknown): ParsedVisionOutput {
     );
   }
 
-  return { items, notes: value.notes as string[] | undefined };
+  return { items, notes: value.notes };
 }
 
 function parseItem(value: unknown): RecognizedFoodItem {

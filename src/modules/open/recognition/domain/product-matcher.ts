@@ -18,7 +18,9 @@ export function normalizeName(value: string): string {
 /** Significant words of a name, falling back to the whole name if all words are short. */
 function tokenize(name: string): string[] {
   const normalized = normalizeName(name);
-  const words = normalized.split(' ').filter((w) => w.length >= MIN_TOKEN_LENGTH);
+  const words = normalized
+    .split(' ')
+    .filter((w) => w.length >= MIN_TOKEN_LENGTH);
   return words.length ? words : [normalized];
 }
 
