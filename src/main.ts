@@ -1,9 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { Logger, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
+import { HttpLoggingInterceptor } from './shared/interceptors/http-logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -30,6 +32,10 @@ async function bootstrap() {
     }),
   );
 
+  // Единая форма тела ошибки + привязка к requestId из RequestIdMiddleware.
+  app.useGlobalFilters(new AllExceptionsFilter(isProduction));
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
+
   // API schema is for development only — don't advertise it publicly.
   if (!isProduction) {
     const config = new DocumentBuilder()
@@ -45,4 +51,11 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3001, '0.0.0.0');
 }
-bootstrap();
+
+// Без явного обработчика падение на старте (занятый порт, недоступная БД)
+// всплывало бы как unhandled rejection с невнятным стеком и нулевым кодом
+// выхода — оркестратор считал бы контейнер здоровым.
+bootstrap().catch((error: unknown) => {
+  Logger.error('Не удалось запустить приложение', error, 'Bootstrap');
+  process.exit(1);
+});
