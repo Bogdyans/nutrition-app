@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SeverityLevel } from '@prisma/client';
 import { PrismaService } from '../../../core/prisma/prisma.service';
+import { round2 } from '../../../../shared/utils/number';
 
 type ProductReactionBreakdown = {
   reactionId: string;
@@ -69,10 +70,6 @@ const RECENT_MEALS_LIMIT = 8;
 export class ReactionStatsQueryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private round2(value: number) {
-    return Number(value.toFixed(2));
-  }
-
   /**
    * Продукты, на которые у пользователя есть реакции, отсортированные по ДОЛЕ
    * приёмов пищи с реакцией (reactionRate), а не по числу реакций. Для каждого
@@ -133,7 +130,7 @@ export class ReactionStatsQueryService {
         name: detail.reaction.name,
         count: detail.count,
         avgSeverity:
-          detail.count > 0 ? this.round2(detail.severitySum / detail.count) : 0,
+          detail.count > 0 ? round2(detail.severitySum / detail.count) : 0,
       });
       detailsByProduct.set(detail.productId, bucket);
     }
@@ -145,7 +142,7 @@ export class ReactionStatsQueryService {
       reactionMealsCount: stat.reactionMealsCount,
       reactionRate:
         stat.mealsCount > 0
-          ? this.round2(stat.reactionMealsCount / stat.mealsCount)
+          ? round2(stat.reactionMealsCount / stat.mealsCount)
           : 0,
       topReactions: (detailsByProduct.get(stat.productId) ?? []).slice(
         0,
@@ -191,8 +188,7 @@ export class ReactionStatsQueryService {
           name: nameById.get(group.reactionId) ?? 'Без названия',
           totalCount,
           productsCount: group._count.productId,
-          avgSeverity:
-            totalCount > 0 ? this.round2(severitySum / totalCount) : 0,
+          avgSeverity: totalCount > 0 ? round2(severitySum / totalCount) : 0,
         };
       })
       .sort((a, b) => b.totalCount - a.totalCount);
@@ -260,7 +256,7 @@ export class ReactionStatsQueryService {
         productName: detail.product.name,
         count: detail.count,
         avgSeverity:
-          detail.count > 0 ? this.round2(detail.severitySum / detail.count) : 0,
+          detail.count > 0 ? round2(detail.severitySum / detail.count) : 0,
       }));
 
     const recentMeals: ReactionDetailMeal[] = mealReactions.map((mr) => {
@@ -286,7 +282,7 @@ export class ReactionStatsQueryService {
       name: reaction.name,
       totalCount,
       productsCount: details.length,
-      avgSeverity: totalCount > 0 ? this.round2(severitySum / totalCount) : 0,
+      avgSeverity: totalCount > 0 ? round2(severitySum / totalCount) : 0,
       topProducts,
       recentMeals,
     };

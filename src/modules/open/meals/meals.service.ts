@@ -13,7 +13,14 @@ import { UpdateMealItemDto } from './dto/update-meal-item.dto';
 import {
   calculateMealTotalsRaw,
   normalizeNutritionTotals,
+  toMealItemBreakdown,
 } from './meals.mapper';
+import {
+  endOfLocalDayUtc,
+  localTodayKey,
+  startOfLocalDayUtc,
+  type TimezoneOffsetMinutes,
+} from '../../../shared/utils/date';
 import { ReactionStatsDomainService } from '../reactions/services/reaction-stats.domain.service';
 
 type MealWithItems = Prisma.MealGetPayload<{
@@ -45,52 +52,34 @@ export class MealsService {
     private readonly stats: ReactionStatsDomainService,
   ) {}
 
-  private round2(value: number) {
-    return Number(value.toFixed(2));
-  }
-
   private unique(values: string[]) {
     return [...new Set(values)];
   }
 
-  private startOfLocalDayUtc(
-    dateString: string,
-    timezoneOffsetMinutes: number,
+  private resolveRange(
+    query: GetMealsDto,
+    timezoneOffsetMinutes: TimezoneOffsetMinutes,
   ) {
-    const [year, month, day] = dateString.split('-').map(Number);
-
-    return new Date(
-      Date.UTC(year, month - 1, day, 0, -timezoneOffsetMinutes, 0, 0),
-    );
-  }
-
-  private endOfLocalDayUtc(dateString: string, timezoneOffsetMinutes: number) {
-    const start = this.startOfLocalDayUtc(dateString, timezoneOffsetMinutes);
-
-    start.setUTCDate(start.getUTCDate() + 1);
-
-    return start;
-  }
-
-  private resolveRange(query: GetMealsDto, timezoneOffsetMinutes: number) {
     if (query.date && (query.from || query.to)) {
-      throw new BadRequestException('Укажите либо конкретную дату, либо диапазон дат');
+      throw new BadRequestException(
+        'Укажите либо конкретную дату, либо диапазон дат',
+      );
     }
 
     if (query.date) {
       return {
-        start: this.startOfLocalDayUtc(query.date, timezoneOffsetMinutes),
-        end: this.endOfLocalDayUtc(query.date, timezoneOffsetMinutes),
+        start: startOfLocalDayUtc(query.date, timezoneOffsetMinutes),
+        end: endOfLocalDayUtc(query.date, timezoneOffsetMinutes),
       };
     }
 
     if (query.from || query.to) {
       const start = query.from
-        ? this.startOfLocalDayUtc(query.from, timezoneOffsetMinutes)
+        ? startOfLocalDayUtc(query.from, timezoneOffsetMinutes)
         : new Date(0);
 
       const end = query.to
-        ? this.endOfLocalDayUtc(query.to, timezoneOffsetMinutes)
+        ? endOfLocalDayUtc(query.to, timezoneOffsetMinutes)
         : new Date();
 
       if (start > end) {
@@ -100,17 +89,11 @@ export class MealsService {
       return { start, end };
     }
 
-    const today = new Date();
-
-    const localToday = new Date(
-      today.getTime() - timezoneOffsetMinutes * 60_000,
-    )
-      .toISOString()
-      .slice(0, 10);
+    const today = localTodayKey(timezoneOffsetMinutes);
 
     return {
-      start: this.startOfLocalDayUtc(localToday, timezoneOffsetMinutes),
-      end: this.endOfLocalDayUtc(localToday, timezoneOffsetMinutes),
+      start: startOfLocalDayUtc(today, timezoneOffsetMinutes),
+      end: endOfLocalDayUtc(today, timezoneOffsetMinutes),
     };
   }
 
@@ -233,26 +216,11 @@ export class MealsService {
   }
 
   private toMealResponse(meal: MealWithItems) {
-    const items = meal.items.map((item) => {
-      const factor = item.weightG / 100;
-
-      return {
-        id: item.id,
-        productId: item.productId,
-        productName: item.product.name,
-        weightG: this.round2(item.weightG),
-        calories: this.round2(item.product.calories * factor),
-        proteins: this.round2(item.product.proteins * factor),
-        fats: this.round2(item.product.fats * factor),
-        carbs: this.round2(item.product.carbs * factor),
-      };
-    });
-
     return {
       id: meal.id,
       timestamp: meal.timestamp.toISOString(),
       photoUrl: meal.photoUrl,
-      items,
+      items: meal.items.map(toMealItemBreakdown),
       totals: normalizeNutritionTotals(calculateMealTotalsRaw(meal)),
     };
   }
@@ -288,7 +256,9 @@ export class MealsService {
         });
 
         if (accessibleProducts.length !== uniqueProductIds.length) {
-          throw new BadRequestException('Один или несколько продуктов недоступны');
+          throw new BadRequestException(
+            'Один или несколько продуктов недоступны',
+          );
         }
 
         await tx.mealItem.createMany({
@@ -320,7 +290,7 @@ export class MealsService {
   async findMany(
     userId: string,
     query: GetMealsDto,
-    timezoneOffsetMinutes: number,
+    timezoneOffsetMinutes: TimezoneOffsetMinutes,
   ) {
     const { start, end } = this.resolveRange(query, timezoneOffsetMinutes);
     const limit = query.limit ?? 10;

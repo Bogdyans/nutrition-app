@@ -1,28 +1,37 @@
 import { Type } from 'class-transformer';
 import {
-  IsDateString,
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   ValidateIf,
 } from 'class-validator';
 
+// Границы суток считаются в таймзоне пользователя, поэтому здесь нужен
+// именно календарный день без времени: полный ISO-timestamp сделал бы
+// «начало дня» бессмысленным.
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 export class GetMealsDto {
   @ValidateIf((o: GetMealsDto) => !o.from && !o.to)
   @IsOptional()
-  @IsDateString({}, { message: 'Некорректная дата' })
+  @Matches(DATE_ONLY, { message: 'Используйте формат даты ГГГГ-ММ-ДД' })
   date?: string;
 
   @ValidateIf((o: GetMealsDto) => !o.date)
   @IsOptional()
-  @IsDateString({}, { message: 'Некорректная начальная дата' })
+  @Matches(DATE_ONLY, {
+    message: 'Используйте формат начальной даты ГГГГ-ММ-ДД',
+  })
   from?: string;
 
   @ValidateIf((o: GetMealsDto) => !o.date)
   @IsOptional()
-  @IsDateString({}, { message: 'Некорректная конечная дата' })
+  @Matches(DATE_ONLY, {
+    message: 'Используйте формат конечной даты ГГГГ-ММ-ДД',
+  })
   to?: string;
 
   @IsOptional()

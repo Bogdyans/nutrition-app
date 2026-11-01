@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
+import { TimezoneOffset } from '../../../shared/decorators/timezone-offset.decorator';
+import type { TimezoneOffsetMinutes } from '../../../shared/utils/date';
 import type { SessionUserDataFromJwt } from '../../core/auth/types';
 import { FamilyService } from './family.service';
 import { StatsService } from '../stats/stats.service';
@@ -27,9 +29,10 @@ export class FamilyMembersController {
     @CurrentUser() user: SessionUserDataFromJwt,
     @Param('memberId') memberId: string,
     @Query() query: GetStatsRangeDto,
+    @TimezoneOffset() timezoneOffset: TimezoneOffsetMinutes,
   ) {
     await this.family.assertCanViewMember(user.id, memberId);
-    return this.stats.getRangeStats(memberId, query);
+    return this.stats.getRangeStats(memberId, query, timezoneOffset);
   }
 
   @Get(':memberId/stats/weight')
@@ -37,9 +40,10 @@ export class FamilyMembersController {
     @CurrentUser() user: SessionUserDataFromJwt,
     @Param('memberId') memberId: string,
     @Query() query: GetStatsRangeDto,
+    @TimezoneOffset() timezoneOffset: TimezoneOffsetMinutes,
   ) {
     await this.family.assertCanViewMember(user.id, memberId);
-    return this.stats.getWeightStats(memberId, query);
+    return this.stats.getWeightStats(memberId, query, timezoneOffset);
   }
 
   @Get(':memberId/stats/day')
@@ -47,9 +51,10 @@ export class FamilyMembersController {
     @CurrentUser() user: SessionUserDataFromJwt,
     @Param('memberId') memberId: string,
     @Query() query: GetStatsDayDto,
+    @TimezoneOffset() timezoneOffset: TimezoneOffsetMinutes,
   ) {
     await this.family.assertCanViewMember(user.id, memberId);
-    return this.stats.getDayStats(memberId, query);
+    return this.stats.getDayStats(memberId, query, timezoneOffset);
   }
 
   @Get(':memberId/reactions/products')

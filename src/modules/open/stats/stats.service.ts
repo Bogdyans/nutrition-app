@@ -4,31 +4,30 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { GetStatsDayDto } from './dto/get-stats-date.dto';
 import { GetStatsRangeDto } from './dto/get-stats-range.dto';
 import {
+  addTotals,
   calculateMealTotalsRaw,
+  createEmptyTotals,
+  divideTotals,
   normalizeNutritionTotals,
+  sumMealsTotalsRaw,
+  toMealItemBreakdown,
+  type MealItemBreakdown,
+  type NutritionTotals,
 } from '../meals/meals.mapper';
+import {
+  daysBetweenInclusive,
+  eachDayKey,
+  endOfLocalDayUtc,
+  localTodayKey,
+  shiftDayKey,
+  startOfLocalDayUtc,
+  toLocalDayKey,
+  type TimezoneOffsetMinutes,
+} from '../../../shared/utils/date';
+import { round2 } from '../../../shared/utils/number';
 
 const MAX_RANGE_DAYS = 90;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-type RawNutritionTotals = {
-  calories: number;
-  proteins: number;
-  fats: number;
-  carbs: number;
-};
-
-type NutritionTotals = RawNutritionTotals;
-
-type MealWithItems = Prisma.MealGetPayload<{
-  include: {
-    items: {
-      include: {
-        product: true;
-      };
-    };
-  };
-}>;
+const SUMMARY_WEEK_DAYS = 7;
 
 type MealWithItemsAndReactions = Prisma.MealGetPayload<{
   include: {
@@ -44,17 +43,6 @@ type MealReactionBreakdown = {
   severity: SeverityLevel | null;
 };
 
-type MealItemBreakdown = {
-  id: string;
-  productId: string;
-  productName: string;
-  weightG: number;
-  calories: number;
-  proteins: number;
-  fats: number;
-  carbs: number;
-};
-
 type MealBreakdown = {
   id: string;
   timestamp: string;
@@ -67,7 +55,7 @@ type MealBreakdown = {
 type DayBucket = {
   date: string;
   mealsCount: number;
-  totals: RawNutritionTotals;
+  totals: NutritionTotals;
 };
 
 type DayStatsResponse = {
@@ -130,128 +118,16 @@ type SummaryResponse = {
   };
 };
 
+/**
+ * Все границы суток здесь считаются в таймзоне пользователя — так же, как в
+ * MealsService. Иначе один и тот же приём пищи, съеденный ночью, попадал бы в
+ * разные дни в списке приёмов пищи и в статистике.
+ */
 @Injectable()
 export class StatsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private createEmptyRawTotals(): RawNutritionTotals {
-    return { calories: 0, proteins: 0, fats: 0, carbs: 0 };
-  }
-
-  private round2(value: number) {
-    return Number(value.toFixed(2));
-  }
-
-  private toNormalizedTotals(totals: RawNutritionTotals): NutritionTotals {
-    return normalizeNutritionTotals(totals);
-  }
-
-  private addRawTotals(target: RawNutritionTotals, source: RawNutritionTotals) {
-    target.calories += source.calories;
-    target.proteins += source.proteins;
-    target.fats += source.fats;
-    target.carbs += source.carbs;
-  }
-
-  private parseDateOnly(value: string): Date {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-    if (!match) {
-      throw new BadRequestException('Используйте формат даты ГГГГ-ММ-ДД');
-    }
-
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    const day = Number(match[3]);
-
-    const parsed = new Date(Date.UTC(year, month - 1, day));
-
-    if (parsed.toISOString().slice(0, 10) !== value) {
-      throw new BadRequestException('Некорректная дата');
-    }
-
-    return parsed;
-  }
-
-  private startOfUtcDay(value: string | Date) {
-    const date = typeof value === 'string' ? this.parseDateOnly(value) : value;
-
-    return new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-    );
-  }
-
-  private endOfUtcDay(value: string | Date) {
-    const end = this.startOfUtcDay(value);
-    end.setUTCDate(end.getUTCDate() + 1);
-    return end;
-  }
-
-  private addUtcDays(value: Date, days: number) {
-    const result = new Date(value);
-    result.setUTCDate(result.getUTCDate() + days);
-    return result;
-  }
-
-  private toDayKey(value: Date) {
-    return value.toISOString().slice(0, 10);
-  }
-
-  private buildDays(start: Date, endExclusive: Date) {
-    const days: DayBucket[] = [];
-    let cursor = new Date(start);
-
-    while (cursor < endExclusive) {
-      days.push({
-        date: this.toDayKey(cursor),
-        mealsCount: 0,
-        totals: this.createEmptyRawTotals(),
-      });
-
-      cursor = this.addUtcDays(cursor, 1);
-    }
-
-    return days;
-  }
-
-  private sumMealsTotalsRaw(meals: MealWithItems[]) {
-    return meals.reduce<RawNutritionTotals>((acc, meal) => {
-      this.addRawTotals(acc, calculateMealTotalsRaw(meal));
-      return acc;
-    }, this.createEmptyRawTotals());
-  }
-
-  private divideTotals(
-    totals: RawNutritionTotals,
-    divisor: number,
-  ): NutritionTotals {
-    if (divisor <= 0) {
-      return this.toNormalizedTotals(this.createEmptyRawTotals());
-    }
-
-    return this.toNormalizedTotals({
-      calories: totals.calories / divisor,
-      proteins: totals.proteins / divisor,
-      fats: totals.fats / divisor,
-      carbs: totals.carbs / divisor,
-    });
-  }
-
   private toMealBreakdown(meal: MealWithItemsAndReactions): MealBreakdown {
-    const items = meal.items.map((item) => {
-      const factor = item.weightG / 100;
-
-      return {
-        id: item.id,
-        productId: item.productId,
-        productName: item.product.name,
-        weightG: this.round2(item.weightG),
-        calories: this.round2(item.product.calories * factor),
-        proteins: this.round2(item.product.proteins * factor),
-        fats: this.round2(item.product.fats * factor),
-        carbs: this.round2(item.product.carbs * factor),
-      };
-    });
-
     const reactions: MealReactionBreakdown[] = meal.mealReactions.map((mr) => ({
       id: mr.id,
       reactionId: mr.userReactionId,
@@ -263,48 +139,45 @@ export class StatsService {
       id: meal.id,
       timestamp: meal.timestamp.toISOString(),
       photoUrl: meal.photoUrl,
-      items,
+      items: meal.items.map(toMealItemBreakdown),
       reactions,
-      totals: this.toNormalizedTotals(calculateMealTotalsRaw(meal)),
+      totals: normalizeNutritionTotals(calculateMealTotalsRaw(meal)),
     };
   }
 
-  private resolveDayRange(date: string) {
-    const start = this.startOfUtcDay(date);
-    const end = this.endOfUtcDay(date);
-    return { start, end };
-  }
+  private resolveRange(
+    query: GetStatsRangeDto,
+    timezoneOffsetMinutes: TimezoneOffsetMinutes,
+  ) {
+    const spanDays = daysBetweenInclusive(query.from, query.to);
 
-  private resolveRange(query: GetStatsRangeDto) {
-    const start = this.startOfUtcDay(query.from);
-    const end = this.endOfUtcDay(query.to);
-
-    if (start > end) {
+    if (spanDays <= 0) {
       throw new BadRequestException('Некорректный диапазон дат');
     }
 
-    const spanDays = (end.getTime() - start.getTime()) / DAY_MS;
     if (spanDays > MAX_RANGE_DAYS) {
       throw new BadRequestException(
         `Диапазон не может превышать ${MAX_RANGE_DAYS} дней`,
       );
     }
 
-    return { start, end };
+    return {
+      start: startOfLocalDayUtc(query.from, timezoneOffsetMinutes),
+      end: endOfLocalDayUtc(query.to, timezoneOffsetMinutes),
+    };
   }
 
   async getDayStats(
     userId: string,
     query: GetStatsDayDto,
+    timezoneOffsetMinutes: TimezoneOffsetMinutes,
   ): Promise<DayStatsResponse> {
-    const { start, end } = this.resolveDayRange(query.date);
-
     const meals = await this.prisma.meal.findMany({
       where: {
         userId,
         timestamp: {
-          gte: start,
-          lt: end,
+          gte: startOfLocalDayUtc(query.date, timezoneOffsetMinutes),
+          lt: endOfLocalDayUtc(query.date, timezoneOffsetMinutes),
         },
       },
       include: {
@@ -322,21 +195,20 @@ export class StatsService {
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
     });
 
-    const totalsRaw = this.sumMealsTotalsRaw(meals);
-
     return {
       date: query.date,
       mealsCount: meals.length,
       meals: meals.map((meal) => this.toMealBreakdown(meal)),
-      totals: this.toNormalizedTotals(totalsRaw),
+      totals: normalizeNutritionTotals(sumMealsTotalsRaw(meals)),
     };
   }
 
   async getRangeStats(
     userId: string,
     query: GetStatsRangeDto,
+    timezoneOffsetMinutes: TimezoneOffsetMinutes,
   ): Promise<RangeStatsResponse> {
-    const { start, end } = this.resolveRange(query);
+    const { start, end } = this.resolveRange(query, timezoneOffsetMinutes);
 
     const meals = await this.prisma.meal.findMany({
       where: {
@@ -356,25 +228,28 @@ export class StatsService {
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
     });
 
-    const days = this.buildDays(start, end);
+    const days: DayBucket[] = eachDayKey(query.from, query.to).map((date) => ({
+      date,
+      mealsCount: 0,
+      totals: createEmptyTotals(),
+    }));
+
     const daysByKey = new Map(days.map((day) => [day.date, day] as const));
 
     for (const meal of meals) {
-      const bucket = daysByKey.get(this.toDayKey(meal.timestamp));
+      const bucket = daysByKey.get(
+        toLocalDayKey(meal.timestamp, timezoneOffsetMinutes),
+      );
+
       if (!bucket) {
         continue;
       }
 
       bucket.mealsCount += 1;
-      this.addRawTotals(bucket.totals, calculateMealTotalsRaw(meal));
+      addTotals(bucket.totals, calculateMealTotalsRaw(meal));
     }
 
-    const totalsRaw = this.sumMealsTotalsRaw(meals);
-    const daysResponse: RangeDayResponse[] = days.map((day) => ({
-      date: day.date,
-      mealsCount: day.mealsCount,
-      totals: this.toNormalizedTotals(day.totals),
-    }));
+    const totalsRaw = sumMealsTotalsRaw(meals);
 
     return {
       period: {
@@ -382,17 +257,22 @@ export class StatsService {
         to: query.to,
       },
       mealsCount: meals.length,
-      days: daysResponse,
-      totals: this.toNormalizedTotals(totalsRaw),
-      averagePerDay: this.divideTotals(totalsRaw, days.length),
+      days: days.map((day) => ({
+        date: day.date,
+        mealsCount: day.mealsCount,
+        totals: normalizeNutritionTotals(day.totals),
+      })),
+      totals: normalizeNutritionTotals(totalsRaw),
+      averagePerDay: divideTotals(totalsRaw, days.length),
     };
   }
 
   async getWeightStats(
     userId: string,
     query: GetStatsRangeDto,
+    timezoneOffsetMinutes: TimezoneOffsetMinutes,
   ): Promise<WeightStatsResponse> {
-    const { start, end } = this.resolveRange(query);
+    const { start, end } = this.resolveRange(query, timezoneOffsetMinutes);
 
     const [user, records] = await Promise.all([
       this.prisma.user.findUnique({
@@ -420,9 +300,7 @@ export class StatsService {
 
     const change =
       records.length >= 2
-        ? this.round2(
-            records[records.length - 1].weightInKg - records[0].weightInKg,
-          )
+        ? round2(records[records.length - 1].weightInKg - records[0].weightInKg)
         : null;
 
     return {
@@ -430,21 +308,34 @@ export class StatsService {
         from: query.from,
         to: query.to,
       },
-      current: currentWeight !== null ? this.round2(currentWeight) : null,
+      current: currentWeight !== null ? round2(currentWeight) : null,
       change,
       recordsCount: records.length,
       data: records.map((record) => ({
-        date: this.toDayKey(record.measuredAt),
-        weight: this.round2(record.weightInKg),
+        date: toLocalDayKey(record.measuredAt, timezoneOffsetMinutes),
+        weight: round2(record.weightInKg),
       })),
     };
   }
 
-  async getSummary(userId: string): Promise<SummaryResponse> {
-    const todayStart = this.startOfUtcDay(new Date());
-    const todayEnd = this.endOfUtcDay(todayStart);
-    const weekStart = this.addUtcDays(todayStart, -6);
-    const weekEnd = todayEnd;
+  async getSummary(
+    userId: string,
+    timezoneOffsetMinutes: TimezoneOffsetMinutes,
+  ): Promise<SummaryResponse> {
+    const todayKey = localTodayKey(timezoneOffsetMinutes);
+    const weekStartKey = shiftDayKey(todayKey, -(SUMMARY_WEEK_DAYS - 1));
+
+    const todayStart = startOfLocalDayUtc(todayKey, timezoneOffsetMinutes);
+    const todayEnd = endOfLocalDayUtc(todayKey, timezoneOffsetMinutes);
+    const weekStart = startOfLocalDayUtc(weekStartKey, timezoneOffsetMinutes);
+
+    const mealsInclude = {
+      items: {
+        include: {
+          product: true,
+        },
+      },
+    };
 
     const [todayMeals, weekMeals, latestWeight, weekWeights, user] =
       await Promise.all([
@@ -456,29 +347,17 @@ export class StatsService {
               lt: todayEnd,
             },
           },
-          include: {
-            items: {
-              include: {
-                product: true,
-              },
-            },
-          },
+          include: mealsInclude,
         }),
         this.prisma.meal.findMany({
           where: {
             userId,
             timestamp: {
               gte: weekStart,
-              lt: weekEnd,
+              lt: todayEnd,
             },
           },
-          include: {
-            items: {
-              include: {
-                product: true,
-              },
-            },
-          },
+          include: mealsInclude,
         }),
         this.prisma.weightHistory.findFirst({
           where: { userId },
@@ -492,7 +371,7 @@ export class StatsService {
             userId,
             measuredAt: {
               gte: weekStart,
-              lt: weekEnd,
+              lt: todayEnd,
             },
           },
           select: {
@@ -507,15 +386,15 @@ export class StatsService {
         }),
       ]);
 
-    const todayTotalsRaw = this.sumMealsTotalsRaw(todayMeals);
-    const weekTotalsRaw = this.sumMealsTotalsRaw(weekMeals);
+    const todayTotalsRaw = sumMealsTotalsRaw(todayMeals);
+    const weekTotalsRaw = sumMealsTotalsRaw(weekMeals);
 
     const currentWeight =
       latestWeight?.weightInKg ?? user?.currentWeight ?? null;
 
     const change7d =
       weekWeights.length >= 2
-        ? this.round2(
+        ? round2(
             weekWeights[weekWeights.length - 1].weightInKg -
               weekWeights[0].weightInKg,
           )
@@ -523,19 +402,19 @@ export class StatsService {
 
     return {
       today: {
-        date: this.toDayKey(todayStart),
+        date: todayKey,
         mealsCount: todayMeals.length,
-        totals: this.toNormalizedTotals(todayTotalsRaw),
+        totals: normalizeNutritionTotals(todayTotalsRaw),
       },
       week: {
-        from: this.toDayKey(weekStart),
-        to: this.toDayKey(todayStart),
+        from: weekStartKey,
+        to: todayKey,
         mealsCount: weekMeals.length,
-        totals: this.toNormalizedTotals(weekTotalsRaw),
-        averagePerDay: this.divideTotals(weekTotalsRaw, 7),
+        totals: normalizeNutritionTotals(weekTotalsRaw),
+        averagePerDay: divideTotals(weekTotalsRaw, SUMMARY_WEEK_DAYS),
       },
       weight: {
-        current: currentWeight !== null ? this.round2(currentWeight) : null,
+        current: currentWeight !== null ? round2(currentWeight) : null,
         change7d,
         recordsCount: weekWeights.length,
       },

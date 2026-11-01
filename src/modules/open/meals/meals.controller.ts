@@ -18,7 +18,8 @@ import { AddMealItemDto } from './dto/add-meal-item.dto';
 import { GetMealsDto } from './dto/get-meals.dto';
 import { UpdateMealDto } from './dto/update-meal.dto';
 import { UpdateMealItemDto } from './dto/update-meal-item.dto';
-import { Headers } from '@nestjs/common';
+import { TimezoneOffset } from '../../../shared/decorators/timezone-offset.decorator';
+import type { TimezoneOffsetMinutes } from '../../../shared/utils/date';
 
 @UseGuards(JwtAuthGuard)
 @Controller('meals')
@@ -37,14 +38,9 @@ export class MealsController {
   findMany(
     @CurrentUser() user: SessionUserDataFromJwt,
     @Query() query: GetMealsDto,
-    @Headers('x-timezone-offset')
-    timezoneOffset?: string,
+    @TimezoneOffset() timezoneOffset: TimezoneOffsetMinutes,
   ) {
-    return this.mealsService.findMany(
-      user.id,
-      query,
-      Number(timezoneOffset ?? 0),
-    );
+    return this.mealsService.findMany(user.id, query, timezoneOffset);
   }
 
   @Get(':id')
