@@ -59,3 +59,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.exe
 prompt.txt
 
+# Резервные копии схемы: актуальна только prisma/schema.prisma,
+# прежние версии лежат в истории git.
+prisma/*.old.prisma
+

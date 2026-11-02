@@ -75,33 +75,6 @@ enum SeverityLevel {
   @@map("severity_levels")
 }
 
-// Статусы подписок
-enum SubscriptionStatus {
-  ACTIVE    @map("active")
-  EXPIRED   @map("expired")
-  PENDING   @map("pending")
-  CANCELLED @map("cancelled")
-
-  @@map("subscription_statuses")
-}
-
-enum PaymentStatus {
-  PENDING   @map("pending")
-  COMPLETED @map("completed")
-  FAILED    @map("failed")
-  CANCELLED @map("cancelled")
-  REFUNDED  @map("refunded")
-
-  @@map("payment_status")
-}
-
-enum BillingInterval {
-  MONTH @map("month")
-  YEAR  @map("year")
-
-  @@map("billing_intervals")
-}
-
 enum Gender {
   MALE   @map("male")
   FEMALE @map("female")
@@ -187,8 +160,8 @@ model User {
   products                      Product[]
   productStats                  ProductReactionStat[]
   productDetails                ProductReactionDetail[]
-  sendedFamilyGroupInvitation   FamilyGroupInvitation[] @relation("SentInvitations")
-  receivecFamilyGroupInvitation FamilyGroupInvitation[] @relation("ReceivedInvitations")
+  sentFamilyGroupInvitations     FamilyGroupInvitation[] @relation("SentInvitations")
+  receivedFamilyGroupInvitations FamilyGroupInvitation[] @relation("ReceivedInvitations")
 
   @@map("users")
 }
@@ -290,8 +263,6 @@ model MealReaction {
 model Recommendation {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
-  // authorId  Int?     @map("author_id") // Эксперт или NULL для ИИ [cite: 973]
-  // author    User?    @relation("AuthoredRecommendations", fields: [authorId], references: [id])
   content   String
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -316,10 +287,10 @@ model FamilyGroup {
 }
 
 model FamilyGroupMember {
-  userId     String    @id @map("user_id")
-  groupId    String    @map("group_id")
-  role       GroupRole @default(MEMBER)
-  created_at DateTime  @default(now())
+  userId    String    @id @map("user_id")
+  groupId   String    @map("group_id")
+  role      GroupRole @default(MEMBER)
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user  User        @relation(fields: [userId], references: [id])
   group FamilyGroup @relation(fields: [groupId], references: [id])

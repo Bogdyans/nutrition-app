@@ -105,7 +105,7 @@ export class FamilyService {
                 userId: true,
                 groupId: true,
                 role: true,
-                created_at: true,
+                createdAt: true,
                 user: {
                   select: {
                     id: true,
@@ -122,7 +122,7 @@ export class FamilyService {
     });
 
     // 2. Ищем все активные инвайты, которые были отправлены ЭТОМУ пользователю
-    // (В схеме Prisma это связь receivecFamilyGroupInvitation)
+    // (В схеме Prisma это связь receivedFamilyGroupInvitations)
     const pendingInvitations = await this.prisma.familyGroupInvitation.findMany(
       {
         where: {
