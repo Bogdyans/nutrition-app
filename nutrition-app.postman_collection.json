@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "ea55d9f6-0725-4228-9351-bc2f9e9c5163",
-    "name": "UniSpring Auth API Tests",
+    "name": "Nutrition App API",
     "description": "Полный набор тестов для REST API с JWT авторизацией (регистрация, логин, защищённые роуты)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "28628603"
