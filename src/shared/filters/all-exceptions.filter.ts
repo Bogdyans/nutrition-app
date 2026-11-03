@@ -34,8 +34,7 @@ const SERVER_ERROR_THRESHOLD = 500;
  * Единая точка превращения исключений в HTTP-ответ.
  *
  * Даёт три вещи, которых не было: стабильную форму тела ошибки, привязку
- * ошибки к requestId (иначе по логам не найти конкретный запрос) и защиту от
- * утечки внутренних деталей — текст неизвестной ошибки в прод не уходит.
+ * ошибки к requestId и защиту от утечки внутренних деталей — текст неизвестной ошибки в прод не уходит.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -75,7 +74,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const payload = exception.getResponse();
 
       // Nest отдаёт либо строку, либо объект — у ValidationPipe это объект с
-      // массивом сообщений, который важно сохранить как есть.
+      // массивом сообщений, который важно сохранить как есть
       if (typeof payload === 'string') {
         return { status, message: payload, error: exception.name };
       }
@@ -140,8 +139,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private log(exception: unknown, request: Request, status: number) {
     const context = `${request.method} ${request.url} -> ${status} [${request.requestId ?? '-'}]`;
 
-    // 4xx — это ожидаемые отказы (валидация, права), они не должны шуметь
-    // на уровне error и поднимать алерты.
+    // 4xx — это ожидаемые отказы, они не должны шуметь
     if (status < SERVER_ERROR_THRESHOLD) {
       this.logger.warn(context);
       return;

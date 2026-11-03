@@ -1,122 +1,91 @@
-# Выпускная квалификационная работа "Разработка мобильного приложения для отслеживания рациона питания"
-Государственный университет "Дубна". Образовательное направление: 09.03.04 Информатика и Вычислительная Техника (направленность (профиль) подготовкиЖ Технологии разработки программного обеспечения)
+# PerekusovNET — backend
 
-Автор: Барыкин Богдан Анатольевич, 4012
+![CI](https://github.com/Bogdyans/nutrition-app/actions/workflows/ci.yml/badge.svg)
 
-Руководитель: должность, Беднякова Татьяна Михайловна
+REST + WebSocket API для мобильного приложения-дневника питания: учёт приёмов пищи с распознаванием блюд по фото через AI, аналитика по калориям/БЖУ и весу, отслеживание пищевых реакций, персонализированные рекомендации на основе истории питания, семейные группы и чаты.
 
-# Краткое описание проекта
-Данный проект представляет собой серверную часть мобильного приложения «Дневник питания»,
-предназначенного для мониторинга рациона пользователя,
-анализа пищевых привычек и формирования персонализированных рекомендаций.
-  
-Основная задача системы — помочь пользователю отслеживать своё питание,
-фиксировать приёмы пищи, анализировать потребление калорий и макронутриентов,
-а также выявлять возможные реакции организма на определённые продукты.
-На основе собранных данных система способна формировать рекомендации с использованием технологий
-искусственного интеллекта.
+## Стек
 
-Ключевые особенности проекта  
--Модульная архитектура серверной части (на основе NestJS), обеспечивающ
-ая масштабируемость и удобство сопровождения.  
--Полноценная система учёта приёмов пищи с детализацией состава (продукты, граммовка, время, фото).  
--Поддержка пользовательских продуктов и каталога.  
--Фиксация реакций организма на приёмы пищи и последующий анализ.  
--Система аналитики и статистики (калории, БЖУ, динамика веса).  
--Генерация персонализированных рекомендаций с использованием AI.  
--Поддержка семейных групп и взаимодействия между пользователями.  
--Встроенная система чатов и обмена сообщениями.  
+- **Платформа:** NestJS 11, TypeScript, Node.js 24
+- **Данные:** PostgreSQL, Prisma ORM (driver adapter `@prisma/adapter-pg`)
+- **Аутентификация:** Passport (JWT + local), bcrypt, access/refresh-токены с ротацией
+- **Sockets:** Socket.IO (`@nestjs/websockets`) — чаты
+- **AI:** OpenAI SDK поверх OpenRouter (распознавание блюд по фото, текстовые рекомендации), Google Gemini как альтернативный провайдер рекомендаций
+- **Почта:** Resend / Brevo HTTP API 
+- **Инфраструктура:** Docker, docker-compose, Caddy, GitHub Actions CI
+- **Качество:** ESLint, Prettier, Jest
 
-# Технологический стек проекта
+## Структура
 
-Языки: JavaScript, TypeScript и Prisma  
-Фреймворки: NestJS, Node.js, Prisma, passport, openai  
-Базы данных: PostgreSQL  
-Инструменты: Git, Postman
+```
+src/
+├── config/              # валидация env (Joi)
+├── modules/
+│   ├── core/             # auth, prisma, mail — инфраструктурный слой
+│   ├── closed/           # users — внутренние сервисы без публичного API
+│   └── open/              # публичные фичи: meals, stats, recognition,
+│                          # recommendations, family, chats, reactions, ...
+├── shared/               # guards, interceptors, filters, decorators, utils
+└── tasks/                # cron-задачи 
+```
 
+В модулях `recognition` и `recommendations` код разделён на `domain` (чистая логика, без зависимостей от Nest/Prisma) и `infrastructure` (адаптеры к внешним AI-провайдерам).
 
-# Структура репозитория
+## Быстрый старт
 
-![img.png](img.png)
-
-
-
-
-
-# Установка
-
-1. Клонируйте репозиторий:
 ```bash
-git clone https://vcs.uni-dubna.ru/BBA.22/perekusov-net.git
+git clone https://github.com/Bogdyans/nutrition-app.git
+cd nutrition-app
+npm install
+cp .env.example .env
 ```
 
+Инициализируйте `.env` переменные в корне проекта, затем:
 
-2. Установите зависимости (из корневой директории проекта):
-```
-    npm install
-```
-
-3. Найстройте переменные оокружения
-
-```
-DATABASE_URL=""
-JWT_ACCESS_SECRET=""
-JWT_REFRESH_SECRET=""
-GOOGLE_CLIENT_ID=""
-GEMINI_API_KEY=""
-
-VISION_OPENROUTER_API_KEY=""
-VISION_OPENROUTER_API_URL=""
-
-RECOMMENDATION_OPENROUTER_API_KEY=""
-RECOMMENDATION_OPENROUTER_API_URL=""
-RECOMMENDATION_OPENROUTER_MODEL=""
-```
-
-4. Выполните миграции базы данных:
-```
-npx prisma migrate dev
-```
-
-5. Сгенерируйте Prisma Client:
-```
+```bash
 npx prisma generate
-```
-
-6. Запустите сервер в режиме разработки:
-```
+npx prisma migrate dev
 npm run start:dev
 ```
 
-Приложение будет доступно по адресу:
+API будет доступно на `http://localhost:3001/api`, Swagger-документация — на `http://localhost:3001/docs` (только вне `production`).
+
+### Переменные окружения
+
+| Переменная | Обязательна | Назначение |
+| --- | --- | --- |
+| `DATABASE_URL` | да | строка подключения к PostgreSQL |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | да | ≥32 символов, должны отличаться друг от друга |
+| `GEMINI_API_KEY` | да | провайдер рекомендаций Google Gemini |
+| `RECOMMENDATION_OPENROUTER_API_KEY/URL/MODEL` | да | провайдер текстовых рекомендаций через OpenRouter |
+| `VISION_OPENROUTER_API_KEY/URL/MODEL` | да | распознавание блюд на фото |
+| `PORT`, `NODE_ENV` | нет | по умолчанию `3001` / `development` |
+| `RESEND_API_KEY` или `BREVO_API_KEY` | нет | отправка писем с кодом подтверждения; без ключей код просто пишется в лог (режим разработки) |
+| `MAIL_FROM_EMAIL`, `MAIL_FROM_NAME` | нет | отправитель писем |
+
+Полный пример — [.env.example](.env.example).
+
+## Тесты и качество кода
+
+```bash
+npm run lint    # ESLint (type-aware), --fix
+npm test        # unit-тесты (Jest)
+npm run build   # сборка (nest build)
 ```
-http://localhost:3000
+
+Юнит-тесты покрывают прежде всего логику с реальным риском ошибок: границы суток в разных таймзонах, парсинг ответа vision-модели, скоринг при сопоставлении продуктов, обработку ошибок. На каждый push/PR эти три шага гоняются в GitHub Actions — см. [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+## API
+
+- Swagger UI — `/docs` (dev/staging)
+- Коллекция Postman — [nutrition-app.postman_collection.json](nutrition-app.postman_collection.json)
+
+## Деплой
+
+`Dockerfile` — многоступенчатая сборка: зависимости → сборка → минимальный production-образ; миграции применяются при старте контейнера. `docker-compose.yml` поднимает приложение, PostgreSQL и Caddy одной командой:
+
+```bash
+docker compose up -d --build
 ```
 
-  
-Аппаратные требования:  
--Доступ к сети (для работы с внешними сервисами)  
- 
-Основное окружение  
--Node.js версии 24 и выше  
--npm (или yarn/pnpm)  
--Git (для клонирования репозитория)  
--База данных PostgreSQL версии 13 и выше
-  
-# Использование  
-1. Откройте Postman  
-2. Нажмите Import   
-3. Выберите UniSpring Auth API Tests.postman_collection.json  
-Всё — коллекция появится со всеми запросами, можно играться. Сначала надо зарегистрировать пользователя
-
-# Лицензия, коммерческая тайна, права третьих лиц
-MIT License
-
-# Контакты
-ФИО: Барыкин Богдан Анатольевич
-
-Email: BOGDYA2004@gmail.com
-
-Другие ссылки:
-TG: @Bogdyan2
-
+Автор: Богдан Барыкин — [bogdya2004@gmail.com](mailto:bogdya2004@gmail.com), Telegram [@Bogdyan2](https://t.me/Bogdyan2)

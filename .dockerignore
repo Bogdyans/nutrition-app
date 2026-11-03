@@ -9,6 +9,6 @@ coverage
 
 .env
 .env.*
-!.env.production.example
+!.env.example
 
 test

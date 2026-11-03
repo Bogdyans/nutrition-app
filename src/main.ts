@@ -4,23 +4,26 @@ import { AppModule } from './app.module';
 import { Logger, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { HttpLoggingInterceptor } from './shared/interceptors/http-logging.interceptor';
+
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '../../package.json'), 'utf8'),
+) as { version: string };
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Behind a reverse proxy (nginx/caddy/cloud) X-Forwarded-For carries the real
-  // client IP — without this every client shares the proxy's IP for throttling.
+  // Behind a reverse proxy (nginx/caddy/cloud)
   app.set('trust proxy', 1);
 
   // Security headers. CSP stays off outside production because Swagger UI
   // relies on an inline bootstrap script that the default policy blocks.
   app.use(helmet({ contentSecurityPolicy: isProduction ? undefined : false }));
 
-  // Everything lives under /api, except the public privacy policy page which
-  // must be reachable at the bare https://<domain>/privacy URL (app + stores).
   app.setGlobalPrefix('api', {
     exclude: [{ path: 'privacy', method: RequestMethod.GET }],
   });
@@ -41,7 +44,7 @@ async function bootstrap() {
     const config = new DocumentBuilder()
       .setTitle('My API')
       .setDescription('API documentation')
-      .setVersion('1.0')
+      .setVersion(packageJson.version)
       .addBearerAuth()
       .build();
 
