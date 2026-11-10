@@ -85,7 +85,7 @@ npm run build   # сборка (nest build)
 `Dockerfile` — многоступенчатая сборка: зависимости → сборка → минимальный production-образ; миграции применяются при старте контейнера. `docker-compose.yml` поднимает приложение, PostgreSQL и Caddy одной командой:
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build 
 ```
 
 Автор: Богдан Барыкин — [bogdya2004@gmail.com](mailto:bogdya2004@gmail.com), Telegram [@Bogdyan2](https://t.me/Bogdyan2)
